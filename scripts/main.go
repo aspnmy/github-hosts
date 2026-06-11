@@ -297,7 +297,7 @@ func NewApp() (*App, error) {
 
 // openGitHubRepo 打开项目主页
 func (app *App) openGitHubRepo() error {
-	repoURL := "https://github.com/TinsFox/github-hosts"
+	repoURL := "https://github.com/aspnmy/github-hosts"
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
