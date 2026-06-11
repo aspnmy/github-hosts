@@ -1,4 +1,5 @@
-import { DNS_PROVIDERS, GITHUB_URLS, HOSTS_TEMPLATE } from "../constants"
+import { DNS_PROVIDERS, HOSTS_TEMPLATE } from "../constants"
+import { getDomains } from "../domain-config"
 
 export type HostEntry = [string, string]
 
@@ -74,18 +75,18 @@ export async function fetchIPFromIPAddress(
   return null
 }
 
-export async function fetchLatestHostsData(): Promise<HostEntry[]> {
+export async function fetchLatestHostsData(env?: any): Promise<HostEntry[]> {
   const entries: HostEntry[] = []
   const batchSize = 5
 
-  for (let i = 0; i < GITHUB_URLS.length; i += batchSize) {
+  const domains = await getDomains(env)
+
+  for (let i = 0; i < domains.length; i += batchSize) {
     console.log(
-      `Processing batch ${i / batchSize + 1}/${Math.ceil(
-        GITHUB_URLS.length / batchSize
-      )}`
+      `Processing batch ${i / batchSize + 1}/${Math.ceil(domains.length / batchSize)}`
     )
 
-    const batch = GITHUB_URLS.slice(i, i + batchSize)
+    const batch = domains.slice(i, i + batchSize)
     const batchResults = await Promise.all(
       batch.map(async (domain) => {
         const ip = await fetchIPFromIPAddress(domain)
@@ -98,7 +99,7 @@ export async function fetchLatestHostsData(): Promise<HostEntry[]> {
       ...batchResults.filter((result): result is HostEntry => result !== null)
     )
 
-    if (i + batchSize < GITHUB_URLS.length) {
+    if (i + batchSize < domains.length) {
       await new Promise((resolve) => setTimeout(resolve, 2000))
     }
   }

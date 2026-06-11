@@ -39,10 +39,19 @@ export const GITHUB_URLS = [
   "vscode.dev",
   "education.github.com",
   "private-user-images.githubusercontent.com",
+  "huggingface.co",
+  "cdn-lfs.huggingface.co",
+  "cdn-lfs-us.huggingface.co",
+  "cdn-lfs-eu.huggingface.co",
+  "cdn.huggingface.co",
+  "datasets-server.huggingface.co",
+  "hf.co"
 ]
 
+
+
 export const HOSTS_TEMPLATE = `# github hosts
-# 加速 GitHub 访问
+# 加速 GitHub && huggingface 访问
 
 {content}
 

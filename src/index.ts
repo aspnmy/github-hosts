@@ -5,12 +5,12 @@ import {
   formatHostsFile,
 } from "./services/hosts"
 import { Bindings } from "./types"
-import { GITHUB_URLS } from "./constants"
+import { getDomains } from "./domain-config"
 import { rateLimit } from "./middleware/rate-limit"
 
 const app = new Hono<{ Bindings: Bindings }>()
 
-const ALLOWED_DOMAINS = new Set(GITHUB_URLS)
+// Allowed domains are loaded at runtime from the remote `domains.txt`
 
 app.get("/", async (c) => {
   const html = await c.env.ASSETS.get("index.html")
@@ -22,12 +22,12 @@ app.get("/", async (c) => {
 })
 
 app.get("/hosts.json", async (c) => {
-  const data = await fetchLatestHostsData()
+  const data = await fetchLatestHostsData(c.env)
   return c.json(data)
 })
 
 app.get("/hosts", async (c) => {
-  const data = await fetchLatestHostsData()
+  const data = await fetchLatestHostsData(c.env)
   const hostsContent = formatHostsFile(data)
   return c.text(hostsContent)
 })
@@ -41,7 +41,7 @@ app.post("/reset", rateLimit({ limit: 5, windowMs: 60_000 }), async (c) => {
     return c.json({ error: "Unauthorized" }, 401)
   }
 
-  const newEntries = await fetchLatestHostsData()
+  const newEntries = await fetchLatestHostsData(c.env)
 
   return c.json({
     message: "Refresh completed",
@@ -55,6 +55,9 @@ app.get("/:domain", rateLimit({ limit: 30, windowMs: 60_000 }), async (c) => {
   const domain = c.req.param("domain")
 
   // 只允许查询预定义域名
+  const domains = await getDomains(c.env)
+  const ALLOWED_DOMAINS = new Set(domains)
+
   if (!ALLOWED_DOMAINS.has(domain)) {
     return c.json(
       {

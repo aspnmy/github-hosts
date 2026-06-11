@@ -74,6 +74,14 @@ pnpm run deploy           # 部署到 Cloudflare
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/aspnmy/github-hosts)
 
+## 远程域名配置
+
+本项目支持将域名配置放在仓库根目录的 `domains.txt` 中（每行一个域名，支持 `#` 注释）。
+
+- 更新域名只需修改 `domains.txt` 并推送到 `main` 分支。
+- Worker 会根据 `wrangler.toml` 中的 `DOMAINS_URL` 运行时拉取该文件（并有 5 分钟的缓存），也可以通过 CI 发布后立即生效。
+
+
 ## 鸣谢
 
 - [TinsFox/github-hosts](https://github.com/TinsFox/github-hosts) - 原版项目
