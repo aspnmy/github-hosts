@@ -39,33 +39,26 @@ jobs:
 
           cd ..  # Return to root directory for zip operations
 
-          # 创建 ZIP 包（包含二进制文件）
-          zip -j github-hosts.windows-amd64.zip github-hosts.windows-amd64.exe
-          zip -j github-hosts.windows-386.zip github-hosts.windows-386.exe
-          zip -j github-hosts.darwin-amd64.zip github-hosts.darwin-amd64
-          zip -j github-hosts.darwin-arm64.zip github-hosts.darwin-arm64
-          zip -j github-hosts.linux-amd64.zip github-hosts.linux-amd64
-          zip -j github-hosts.linux-386.zip github-hosts.linux-386
-          zip -j github-hosts.linux-arm64.zip github-hosts.linux-arm64
+          # 创建 ZIP 包（包含二进制文件）并移动到 build/
+          mkdir -p build
+          zip -j build/github-hosts.windows-amd64.zip github-hosts.windows-amd64.exe
+          zip -j build/github-hosts.windows-386.zip github-hosts.windows-386.exe
+          zip -j build/github-hosts.darwin-amd64.zip github-hosts.darwin-amd64
+          zip -j build/github-hosts.darwin-arm64.zip github-hosts.darwin-arm64
+          zip -j build/github-hosts.linux-amd64.zip github-hosts.linux-amd64
+          zip -j build/github-hosts.linux-386.zip github-hosts.linux-386
+          zip -j build/github-hosts.linux-arm64.zip github-hosts.linux-arm64
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            github-hosts.windows-amd64.exe
-            github-hosts.windows-386.exe
-            github-hosts.darwin-amd64
-            github-hosts.darwin-arm64
-            github-hosts.linux-amd64
-            github-hosts.linux-386
-            github-hosts.linux-arm64
-            github-hosts.windows-amd64.zip
-            github-hosts.windows-386.zip
-            github-hosts.darwin-amd64.zip
-            github-hosts.darwin-arm64.zip
-            github-hosts.linux-amd64.zip
-            github-hosts.linux-386.zip
-            github-hosts.linux-arm64.zip
+            build/**
           draft: true
           prerelease: false
           generate_release_notes: true
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-hosts-build
+          path: build/

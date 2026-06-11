@@ -2,7 +2,7 @@ name: Deploy Cloudflare Worker
 
 on:
   push:
-    branches: [ main ]
+    branches: [ nokv ]
 
 jobs:
   deploy:
@@ -16,16 +16,16 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Install pnpm
+        run: |
+          npm install -g pnpm
+
       - name: Install dependencies
         run: |
-          npm ci
+          pnpm install --frozen-lockfile
 
-      - name: Install wrangler
-        run: |
-          npm install -g wrangler
-
-      - name: Publish to Cloudflare
+      - name: Publish to Cloudflare (wrangler)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
-          wrangler publish --minify
+          pnpm dlx wrangler publish --minify
