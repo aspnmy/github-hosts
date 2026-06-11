@@ -1,3 +1,3 @@
-module github.com/TinsFox/github-hosts/scripts
+module github.com/aspnmy/github-hosts/scripts
 
 go 1.21

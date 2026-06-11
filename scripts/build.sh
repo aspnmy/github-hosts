@@ -12,7 +12,7 @@ cd "$(dirname "$0")"
 # 检查 go.mod 文件
 if [ ! -f "go.mod" ]; then
     echo -e "${YELLOW}初始化 Go 模块...${NC}"
-    go mod init github.com/TinsFox/github-hosts/scripts
+    go mod init github.com/aspnmy/github-hosts/scripts
     go mod tidy
 fi
 
