@@ -6,7 +6,7 @@ export async function getDomains(env: any, ttlMs = DEFAULT_TTL): Promise<string[
   if (cache && Date.now() < cache.expires) return cache.domains
 
   const url = env?.DOMAINS_URL ||
-    "https://raw.githubusercontent.com/<owner>/<repo>/main/domains.txt"
+    "https://raw.githubusercontent.com/aspnmy/github-hosts/nokv/domains.txt"
 
   try {
     const res = await fetch(url)
@@ -24,7 +24,7 @@ export async function getDomains(env: any, ttlMs = DEFAULT_TTL): Promise<string[
     // fallback to built-in lists
     try {
       const mod = await import("./constants")
-      const domains = [...(mod.GITHUB_URLS || []), ...(mod.HUGGINGFACE_URLS || [])]
+      const domains = [...(mod.GITHUB_URLS || [])]
       cache = { domains, expires: Date.now() + ttlMs }
       return domains
     } catch (e2) {

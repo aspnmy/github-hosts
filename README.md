@@ -78,8 +78,19 @@ pnpm run deploy           # 部署到 Cloudflare
 
 本项目支持将域名配置放在仓库根目录的 `domains.txt` 中（每行一个域名，支持 `#` 注释）。
 
-- 更新域名只需修改 `domains.txt` 并推送到 `main` 分支。
+- 更新域名只需修改 `domains.txt` 并推送到 `nokv` 分支。
 - Worker 会根据 `wrangler.toml` 中的 `DOMAINS_URL` 运行时拉取该文件（并有 5 分钟的缓存），也可以通过 CI 发布后立即生效。
+
+- 推荐使用 GitHub raw 地址作为运行时来源：
+   `https://raw.githubusercontent.com/aspnmy/github-hosts/nokv/domains.txt`。
+- 维护方式：更新该 `domains.txt` 并推送到 `nokv` 分支，Worker 会从 `wrangler.toml` 中的 `DOMAINS_URL` 拉取该文件（默认缓存 5 分钟）。如需立即生效，请在推送后触发 CI/部署。
+
+如果你不想维护自己的 Cloudflare 部署，也可以使用我的公共部署：
+
+- Fork 本仓库的 `nokv` 分支（或直接 fork 本项目），修改 fork 中的 `domains.txt` 后，将修改推送回我仓库的 `nokv` 分支（即直接向 `aspnmy/github-hosts` 的 `nokv` 分支提交或通过 PR 合并）。
+- 推送后，我在 Cloudflare 上的 Worker 将会读取该 `domains.txt`（由 `wrangler.toml` 中的 `DOMAINS_URL` 指定的 raw 地址），从而使用我已部署的 Worker 解析你维护的域名列表。
+
+重要提醒：使用该共享部署时，保证你维护的域名列表不包含任何位于黑名单中的域名（例如恶意域名或受限域名），否则可能导致服务或安全问题。
 
 
 ## 鸣谢

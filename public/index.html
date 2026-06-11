@@ -123,6 +123,15 @@
     </li>
   </ol>
 
+  <h3>远程域名配置</h3>
+  <p>域名列表由仓库中的 <code>domains.txt</code> 管理。推荐使用以下 raw GitHub 地址作为运行时来源：</p>
+  <pre><code>https://raw.githubusercontent.com/aspnmy/github-hosts/nokv/domains.txt</code></pre>
+  <p>更新域名只需修改该文件并推送到 <code>nokv</code> 分支。Worker 会根据 <code>wrangler.toml</code> 中的 <code>DOMAINS_URL</code> 拉取该文件并缓存（默认 5 分钟）。如需立即生效，请在推送后触发部署。</p>
+
+  <h4>使用我维护的公共部署</h4>
+  <p>如果你不想维护自己的 Cloudflare 部署，可以 fork 本项目的 <code>nokv</code> 分支，编辑并提交 `domains.txt`，然后将修改推送到我仓库的 <code>nokv</code> 分支。推送后，我在 Cloudflare 上的 Worker 将会读取该文件并解析你维护的域名列表。</p>
+  <p><strong>注意：</strong>请确保你维护的域名不在黑名单中（不要包含恶意或受限域名），否则可能影响服务或触发安全策略。</p>
+
   <h2>❓ 常见问题</h2>
   <h3>权限问题</h3>
   <ul>
