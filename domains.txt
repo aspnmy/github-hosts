@@ -45,3 +45,4 @@ cdn-lfs-eu.huggingface.co
 cdn.huggingface.co
 datasets-server.huggingface.co
 hf.co
+devrom.org
