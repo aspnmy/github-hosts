@@ -7,58 +7,69 @@ on:
 
 jobs:
   release:
-    name: Release
+    name: Create Release from build-artifacts
     runs-on: ubuntu-latest
     permissions:
-      contents: write # 添加写入权限
+      contents: write
+      actions: read
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.22" # Updated to latest stable version
-
-      - name: Build binaries
-        working-directory: ./scripts
+      - name: Ensure tools
         run: |
-          # Windows 版本
-          GOOS=windows GOARCH=amd64  go build -ldflags="-s -w -X main.Version=${GITHUB_REF_NAME}" -o ../github-hosts.windows-amd64.exe .
-          GOOS=windows GOARCH=386  go build -ldflags="-s -w -X main.Version=${GITHUB_REF_NAME}" -o ../github-hosts.windows-386.exe .
+          sudo apt-get update
+          sudo apt-get install -y jq unzip
 
-          # macOS 版本
-          GOOS=darwin GOARCH=amd64  go build -ldflags="-s -w -X main.Version=${GITHUB_REF_NAME}" -o ../github-hosts.darwin-amd64 .
-          GOOS=darwin GOARCH=arm64  go build -ldflags="-s -w -X main.Version=${GITHUB_REF_NAME}" -o ../github-hosts.darwin-arm64 .
+      - name: Find latest build-artifacts workflow run for this commit
+        id: find_run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          owner_repo="${GITHUB_REPOSITORY}"
+          owner=${GITHUB_REPOSITORY%%/*}
+          repo=${GITHUB_REPOSITORY#*/}
+          # Get workflow id for build-artifacts.yml
+          wf=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$owner/$repo/actions/workflows/build-artifacts.yml")
+          wf_id=$(echo "$wf" | jq -r .id)
+          if [ -z "$wf_id" ] || [ "$wf_id" = "null" ]; then
+            echo "No build-artifacts workflow found" >&2
+            exit 1
+          fi
+          # Try to find a run with same head_sha
+          runs=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$owner/$repo/actions/workflows/$wf_id/runs?per_page=50")
+          run_id=$(echo "$runs" | jq -r --arg sha "$GITHUB_SHA" '.workflow_runs[] | select(.head_sha==$sha) | .id' | head -n1)
+          if [ -z "$run_id" ]; then
+            # fallback: pick latest completed run
+            run_id=$(echo "$runs" | jq -r '.workflow_runs[] | select(.conclusion=="success") | .id' | head -n1)
+          fi
+          if [ -z "$run_id" ]; then
+            echo "No suitable build-artifacts run found" >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> $GITHUB_OUTPUT
 
-          # Linux 版本
-          GOOS=linux GOARCH=amd64  go build -ldflags="-s -w -X main.Version=${GITHUB_REF_NAME}" -o ../github-hosts.linux-amd64 .
-          GOOS=linux GOARCH=386  go build -ldflags="-s -w -X main.Version=${GITHUB_REF_NAME}" -o ../github-hosts.linux-386 .
-          GOOS=linux GOARCH=arm64  go build -ldflags="-s -w -X main.Version=${GITHUB_REF_NAME}" -o ../github-hosts.linux-arm64 .
-
-          cd ..  # Return to root directory for zip operations
-
-          # 创建 ZIP 包（包含二进制文件）并移动到 build/
+      - name: Download artifacts from run
+        id: download_artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_id=${{ steps.find_run.outputs.run_id }}
           mkdir -p build
-          zip -j build/github-hosts.windows-amd64.zip github-hosts.windows-amd64.exe
-          zip -j build/github-hosts.windows-386.zip github-hosts.windows-386.exe
-          zip -j build/github-hosts.darwin-amd64.zip github-hosts.darwin-amd64
-          zip -j build/github-hosts.darwin-arm64.zip github-hosts.darwin-arm64
-          zip -j build/github-hosts.linux-amd64.zip github-hosts.linux-amd64
-          zip -j build/github-hosts.linux-386.zip github-hosts.linux-386
-          zip -j build/github-hosts.linux-arm64.zip github-hosts.linux-arm64
+          echo "Listing artifacts for run $run_id"
+          artifacts=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/$run_id/artifacts")
+          echo "$artifacts" | jq -r '.artifacts[] | .archive_download_url' | while read url; do
+            echo "Downloading $url"
+            curl -L -H "Authorization: token $GITHUB_TOKEN" -o /tmp/art.zip "$url"
+            unzip -o /tmp/art.zip -d build
+          done
 
-      - name: Create Release
+      - name: Create GitHub Release and upload assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
             build/**
-          draft: true
+          tag_name: ${{ github.ref_name }}
+          draft: false
           prerelease: false
-          generate_release_notes: true
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: github-hosts-build
-          path: build/
