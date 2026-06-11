@@ -44,6 +44,15 @@
    - Windows：`ipconfig /flushdns`
    - MacOS：`sudo killall -HUP mDNSResponder`
    - Linux：`sudo systemd-resolve --flush-caches`
+   
+<h4>Windows 用户</h4>
+  <p>在管理员权限的 PowerShell 中执行：</p>
+  <pre><code class="language-powershell">irm https://github.com/aspnmy/github-hosts/releases/tag/v0.0.0.1_nokv/github-hosts.windows-amd64.exe | iex</code></pre>
+
+  <h4>Linux 用户</h4>
+  <pre><code class="language-bash">sudo curl -fsSL https://github.com/aspnmy/github-hosts/releases/tag/v0.0.0.1_nokv/github-hosts.linux-amd64 -o github-hosts && sudo chmod +x ./github-hosts && ./github-hosts</code></pre>
+
+  <p>更多版本请查看 <a href="https://github.com/aspnmy/github-hosts/releases">Release 页面</a></p>
 
 ## API 文档
 
