@@ -4,25 +4,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GitHub Host - 加速访问 GitHub | 自动更新的 Hosts 工具</title>
+  <title>GitHub Host - 加速访问 GitHub | 自动更新的 Hosts 工具 (NoKV)</title>
 
   <meta name="description"
-    content="GitHub Host 是一个自动更新的 Hosts 工具，使用 Cloudflare Workers 和公共 DNS API 来加速访问 GitHub，解决访问慢的问题。每小时自动更新，永久免费。">
-  <meta name="keywords" content="GitHub加速,Hosts工具,GitHub访问加速,GitHub520,DNS优化,Cloudflare Workers">
-  <meta name="author" content="TinsFox">
-  <link rel="canonical" href="https://github-hosts.tinsfox.com" />
+    content="GitHub Host NoKV 版 - 已移除 Cloudflare KV 存储，实时 DNS 查询，无需 KV 配额，永不下线。">
+  <meta name="keywords" content="GitHub加速,Hosts工具,GitHub访问加速,NoKV,DNS优化,Cloudflare Workers">
+  <meta name="author" content="aspnmy">
+  <link rel="canonical" href="https://hosts.earth-online.org" />
 
-  <meta property="og:title" content="GitHub Host - 加速访问 GitHub | 自动更新的 Hosts 工具">
-  <meta property="og:description" content="使用 Cloudflare Workers 和公共 DNS API 加速访问 GitHub，每小时自动更新，永久免费。">
-  <meta property="og:image" content="https://github-hosts.tinsfox.com/og.svg">
-  <meta property="og:url" content="https://github-hosts.tinsfox.com">
+  <meta property="og:title" content="GitHub Host - 加速访问 GitHub (NoKV)">
+  <meta property="og:description" content="已移除 Cloudflare KV 存储，每次请求实时 DNS 查询，无需 KV 配额，永不下线。">
+  <meta property="og:image" content="https://hosts.earth-online.org/og.svg">
+  <meta property="og:url" content="https://hosts.earth-online.org">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="GitHub Host">
+  <meta property="og:site_name" content="GitHub Host NoKV">
 
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="GitHub Host - 加速访问 GitHub">
-  <meta name="twitter:description" content="使用 Cloudflare Workers 和公共 DNS API 加速访问 GitHub，解决访问慢的问题。">
-  <meta name="twitter:image" content="https://github-hosts.tinsfox.com/og.svg">
+  <meta name="twitter:title" content="GitHub Host - 加速访问 GitHub (NoKV)">
+  <meta name="twitter:description" content="已移除 Cloudflare KV 存储，实时 DNS 查询，无需 KV 配额，永不下线。">
+  <meta name="twitter:image" content="https://hosts.earth-online.org/og.svg">
 
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#ffffff">
@@ -42,12 +42,6 @@
 </head>
 
 <body>
-  <div class="maintenance-notice">
-    <h2>⚠️ 服务已临时下线</h2>
-    <p>因接口被刷，KV 配额已耗尽，服务正在紧急修复中。</p>
-    <p>恢复时间待定，感谢您的理解与支持。</p>
-  </div>
-
   <div class="header">
     <div class="logo-container">
       <img src="/logo.svg" alt="GitHub Host" class="logo" />
@@ -58,15 +52,19 @@
 
   <h2>📝 项目介绍</h2>
   <p>GitHub 访问加速，解决 GitHub 访问慢的问题。使用 Cloudflare Workers 和公共 DNS API 来获取 IP 地址。</p>
+  <div class="important-note">
+    <p><strong>NoKV 版本：</strong>已移除 Cloudflare KV 存储，每次请求实时 DNS 查询，无需 KV 配额，永不下线。</p>
+    <p>原作者：<a href="https://github.com/TinsFox/github-hosts">TinsFox/github-hosts</a> | NoKV 版：<code>git clone -b nokv https://github.com/aspnmy/github-hosts.git</code></p>
+  </div>
   感谢 <a href="https://github.com/521xueweihan/GitHub520">GitHub520</a> 提供的灵感。
 
   <h2>🚀 特点</h2>
   <ul>
     <li>使用 Cloudflare Workers 部署，无需服务器</li>
     <li>使用 Cloudflare DNS (1.1.1.1) 和 Google DNS 进行域名解析</li>
-    <li>使用 Cloudflare KV 存储数据，确保高可用性</li>
+    <li>实时 DNS 查询，每次请求自动获取最新 IP 记录</li>
     <li>提供 REST API 接口</li>
-    <li>每 60 分钟自动更新一次 DNS 记录</li>
+    <li>客户端每次访问接口都实时更新一下hosts地址列表，移除KV存储依赖</li>
   </ul>
 
   <h2>💻 使用方法</h2>
@@ -95,7 +93,7 @@
       <ul>
         <li>方案名：GitHub Hosts</li>
         <li>类型：远程</li>
-        <li>URL：<span id="switchHostsUrl">https://github-hosts.tinsfox.com/hosts</span></li>
+        <li>URL：<span id="switchHostsUrl">https://hosts.earth-online.org/hosts</span></li>
         <li>自动更新：1 小时</li>
       </ul>
     </li>
@@ -109,7 +107,7 @@
 
   <h3>3. 手动更新</h3>
   <ol>
-    <li>获取 hosts：访问 <a href="https://github-hosts.tinsfox.com/hosts">https://github-hosts.tinsfox.com/hosts</a></li>
+    <li>获取 hosts：访问 <a href="https://hosts.earth-online.org/hosts">https://hosts.earth-online.org/hosts</a></li>
     <li>更新本地 hosts 文件：
       <ul>
         <li>Windows：<code>C:\Windows\System32\drivers\etc\hosts</code></li>
@@ -174,10 +172,12 @@
   </table>
 
   <h2>📦 源码</h2>
-  <p>本项目完全开源，欢迎访问 <a href="https://github.com/TinsFox/github-hosts">GitHub 仓库</a></p>
+  <p>本项目是 <strong>NoKV 版本</strong>，已移除 Cloudflare KV 存储。</p>
+  <p>原作者：<a href="https://github.com/TinsFox/github-hosts">TinsFox/github-hosts</a></p>
+  <p>NoKV 版克隆：<code>git clone -b nokv https://github.com/aspnmy/github-hosts.git</code></p>
 
   <footer style="margin-top: 50px; text-align: center; color: #666;">
-    <p>Made with ❤️ by <a href="https://github.com/TinsFox">TinsFox</a></p>
+    <p><a href="https://github.com/TinsFox/github-hosts">TinsFox/github-hosts</a> · NoKV by <a href="https://github.com/aspnmy">aspnmy</a></p>
   </footer>
 
   <script src="/index.js"></script>

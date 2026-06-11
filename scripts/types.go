@@ -48,7 +48,7 @@ type displayOption struct {
 // 系统相关常量
 var (
 	// hostsAPI 定义 API 地址
-	hostsAPI = "https://github-hosts.tinsfox.com/hosts"
+	hostsAPI = "https://hosts.earth-online.org/hosts"
 
 	// hostsFile 根据操作系统定义 hosts 文件路径
 	hostsFile = getHostsFilePath()

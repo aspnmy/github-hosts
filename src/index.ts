@@ -1,56 +1,16 @@
 import { Hono } from "hono"
 import {
+  fetchLatestHostsData,
+  fetchIPFromIPAddress,
   formatHostsFile,
-  getDomainData,
-  getHostsData,
-  resetHostsData,
 } from "./services/hosts"
-import { handleSchedule } from "./scheduled"
 import { Bindings } from "./types"
 import { GITHUB_URLS } from "./constants"
 import { rateLimit } from "./middleware/rate-limit"
 
 const app = new Hono<{ Bindings: Bindings }>()
 
-const MAINTENANCE_MESSAGE = {
-  error: "Service temporarily unavailable",
-  message: "因接口被刷，KV 配额已耗尽，服务已临时下线，恢复时间待定。",
-  timestamp: new Date().toISOString(),
-}
-
-const MAINTENANCE_HTML = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>服务已下线 - GitHub Host</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-           max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
-    .notice { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; 
-             padding: 30px; margin: 20px 0; }
-    .notice h2 { color: #856404; margin-top: 0; }
-    .notice p { color: #856404; font-size: 16px; line-height: 1.6; }
-  </style>
-</head>
-<body>
-  <div class="notice">
-    <h2>⚠️ 服务已临时下线</h2>
-    <p>因接口被刷，KV 配额已耗尽。<br><br>
-    服务正在紧急修复中，恢复时间待定。<br><br>
-    感谢您的理解与支持。</p>
-  </div>
-</body>
-</html>`
-
-// 所有接口返回维护公告
-app.use("*", async (c) => {
-  const accept = c.req.header("Accept") || ""
-  if (accept.includes("text/html")) {
-    return c.html(MAINTENANCE_HTML, 503)
-  }
-  return c.json(MAINTENANCE_MESSAGE, 503)
-})
+const ALLOWED_DOMAINS = new Set(GITHUB_URLS)
 
 app.get("/", async (c) => {
   const html = await c.env.ASSETS.get("index.html")
@@ -62,12 +22,12 @@ app.get("/", async (c) => {
 })
 
 app.get("/hosts.json", async (c) => {
-  const data = await getHostsData(c.env)
+  const data = await fetchLatestHostsData()
   return c.json(data)
 })
 
 app.get("/hosts", async (c) => {
-  const data = await getHostsData(c.env)
+  const data = await fetchLatestHostsData()
   const hostsContent = formatHostsFile(data)
   return c.text(hostsContent)
 })
@@ -81,10 +41,10 @@ app.post("/reset", rateLimit({ limit: 5, windowMs: 60_000 }), async (c) => {
     return c.json({ error: "Unauthorized" }, 401)
   }
 
-  const newEntries = await resetHostsData(c.env)
+  const newEntries = await fetchLatestHostsData()
 
   return c.json({
-    message: "Reset completed",
+    message: "Refresh completed",
     entriesCount: newEntries.length,
     entries: newEntries,
   })
@@ -105,18 +65,20 @@ app.get("/:domain", rateLimit({ limit: 30, windowMs: 60_000 }), async (c) => {
     )
   }
 
-  const data = await getDomainData(c.env, domain)
+  const ip = await fetchIPFromIPAddress(domain)
 
-  if (!data) {
+  if (!ip) {
     return c.json({ error: "Failed to resolve domain" }, 500)
   }
 
-  return c.json(data)
+  const currentTime = new Date().toISOString()
+  return c.json({
+    ip,
+    lastUpdated: currentTime,
+    lastChecked: currentTime,
+  })
 })
 
 export default {
   fetch: app.fetch,
-  async scheduled(event: ScheduledEvent, env: Bindings, ctx: ExecutionContext) {
-    ctx.waitUntil(handleSchedule(event, env))
-  },
 }

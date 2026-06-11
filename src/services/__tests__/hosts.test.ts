@@ -1,49 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { fetchIPFromIPAddress } from "../hosts"
 
-describe("fetchIpFromIpaddress", () => {
+const mockDnsResponse = (ip: string) => ({
+  ok: true,
+  json: () =>
+    Promise.resolve({
+      Status: 0,
+      TC: false,
+      RD: true,
+      RA: true,
+      AD: false,
+      CD: false,
+      Question: [{ name: "github.com", type: 1 }],
+      Answer: [{ name: "github.com", type: 1, TTL: 60, data: ip }],
+    }),
+})
+
+describe("fetchIPFromIPAddress", () => {
   beforeEach(() => {
-    // 清除所有模拟
     vi.clearAllMocks()
   })
 
-  it("should successfully extract IP from DNS section", async () => {
-    // 模拟 fetch 响应
-    global.fetch = vi.fn().mockResolvedValue({
-      text: () =>
-        Promise.resolve(`
-        <html>
-          <body>
-            <div id="dns">
-              <table>
-                <tr>
-                  <td>140.82.114.25</td>
-                </tr>
-              </table>
-            </div>
-          </body>
-        </html>
-      `),
-    })
+  it("should successfully extract IP from DNS response", async () => {
+    global.fetch = vi.fn().mockResolvedValue(mockDnsResponse("140.82.114.25"))
 
     const result = await fetchIPFromIPAddress("github.com")
     expect(result).toBe("140.82.114.25")
-    expect(fetch).toHaveBeenCalledWith(
-      "https://sites.ipaddress.com/github.com",
-      expect.any(Object)
-    )
   })
 
-  it("should return null when DNS section is not found", async () => {
+  it("should return null when no A record in response", async () => {
     global.fetch = vi.fn().mockResolvedValue({
-      text: () =>
-        Promise.resolve(`
-        <html>
-          <body>
-            <div>No DNS section here</div>
-          </body>
-        </html>
-      `),
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          Status: 0,
+          Question: [{ name: "invalid.com", type: 1 }],
+          Answer: [],
+        }),
     })
 
     const result = await fetchIPFromIPAddress("invalid-domain.com")
@@ -57,43 +50,28 @@ describe("fetchIpFromIpaddress", () => {
     expect(result).toBeNull()
   })
 
-  it("should use fallback IP when DNS section IP is not available", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      text: () =>
-        Promise.resolve(`
-        <html>
-          <body>
-            <div id="dns"></div>
-            <div>IP Address: 192.168.1.1</div>
-          </body>
-        </html>
-      `),
-    })
+  it("should handle non-ok response", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false })
 
     const result = await fetchIPFromIPAddress("github.com")
-    expect(result).toBe("192.168.1.1")
+    expect(result).toBeNull()
   })
 
-  it("should handle multiple IPs in DNS section", async () => {
+  it("should return first A record when multiple exist", async () => {
     global.fetch = vi.fn().mockResolvedValue({
-      text: () =>
-        Promise.resolve(`
-        <html>
-          <body>
-            <div id="dns">
-              <table>
-                <tr>
-                  <td>140.82.114.4</td>
-                  <td>140.82.114.5</td>
-                </tr>
-              </table>
-            </div>
-          </body>
-        </html>
-      `),
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          Status: 0,
+          Question: [{ name: "github.com", type: 1 }],
+          Answer: [
+            { name: "github.com", type: 1, TTL: 60, data: "140.82.114.4" },
+            { name: "github.com", type: 1, TTL: 60, data: "140.82.114.5" },
+          ],
+        }),
     })
 
     const result = await fetchIPFromIPAddress("github.com")
-    expect(result).toBe("140.82.114.4") // 应该返回第一个找到的 IP
+    expect(result).toBe("140.82.114.4")
   })
 })

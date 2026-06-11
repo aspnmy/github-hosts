@@ -1,4 +1,4 @@
-name = "github-hosts"
+name = "twilight-cloud-githubhosts-2037"
 main = "src/index.ts"
 compatibility_date = "2024-10-28"
 compatibility_flags = ["nodejs_compat"]
@@ -6,11 +6,6 @@ assets = { directory = "public" }
 
 # [vars]
 # API_KEY = ""
-
-[[kv_namespaces]]
-binding = "github_hosts"
-id = "b47d7f8c9df14032b4fd6c65b2f81e63"
-
 
 # [[r2_buckets]]
 # binding = "MY_BUCKET"
@@ -27,6 +22,3 @@ id = "b47d7f8c9df14032b4fd6c65b2f81e63"
 [observability]
 enabled = true
 head_sampling_rate = 1
-
-[triggers]
-crons = ["0 */1 * * *"]

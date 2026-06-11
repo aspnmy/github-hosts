@@ -1,5 +1,4 @@
 import { Context, MiddlewareHandler } from "hono"
-import { Bindings } from "../types"
 
 export interface RateLimitConfig {
   limit: number
@@ -39,9 +38,12 @@ function getWindowStart(windowMs: number): number {
   return Math.floor(Date.now() / windowMs) * windowMs
 }
 
+// 内存中的限流计数器，Worker 实例生命周期内有效
+const counters = new Map<string, { count: number; windowEnd: number }>()
+
 export function rateLimit(
   config: Partial<RateLimitConfig> = {}
-): MiddlewareHandler<{ Bindings: Bindings }> {
+): MiddlewareHandler {
   const { limit, windowMs } = { ...DEFAULT_CONFIG, ...config }
 
   return async (c, next) => {
@@ -50,13 +52,15 @@ export function rateLimit(
     const windowStart = getWindowStart(windowMs)
     const key = `ratelimit:${normalizedIP}:${windowStart}`
 
-    const kv = c.env.github_hosts
-    const current = parseInt((await kv.get(key)) || "0", 10)
+    const now = Date.now()
+    const entry = counters.get(key)
+
+    const current = entry && now < entry.windowEnd ? entry.count : 0
 
     const windowEnd = windowStart + windowMs
     const resetTimestamp = Math.ceil(windowEnd / 1000)
     const remaining = Math.max(0, limit - current - 1)
-    const retryAfter = Math.ceil((windowEnd - Date.now()) / 1000)
+    const retryAfter = Math.ceil((windowEnd - now) / 1000)
 
     c.header("RateLimit-Limit", String(limit))
     c.header("RateLimit-Remaining", String(Math.max(0, limit - current - 1)))
@@ -70,9 +74,16 @@ export function rateLimit(
       )
     }
 
-    // Increment counter with TTL (window duration + 60s buffer)
-    const ttl = Math.ceil(windowMs / 1000) + 60
-    await kv.put(key, String(current + 1), { expirationTtl: ttl })
+    counters.set(key, { count: current + 1, windowEnd })
+
+    // 定期清理过期计数器，防止内存泄漏
+    if (counters.size > 1000) {
+      for (const [k, v] of counters) {
+        if (now >= v.windowEnd) {
+          counters.delete(k)
+        }
+      }
+    }
 
     await next()
   }
