@@ -24,15 +24,15 @@ jobs:
           # Ensure build directory
           mkdir -p build
           # Windows
-          GOOS=windows GOARCH=amd64 go build -ldflags='-s -w -X main.Version=${{ github.ref_name || "dev" }}' -o ../build/github-hosts.windows-amd64.exe .
-          GOOS=windows GOARCH=386   go build -ldflags='-s -w -X main.Version=${{ github.ref_name || "dev" }}' -o ../build/github-hosts.windows-386.exe .
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.Version=${{ github.ref_name || 'dev' }}" -o ../build/github-hosts.windows-amd64.exe .
+          GOOS=windows GOARCH=386   go build -ldflags="-s -w -X main.Version=${{ github.ref_name || 'dev' }}" -o ../build/github-hosts.windows-386.exe .
           # macOS
-          GOOS=darwin GOARCH=amd64  go build -ldflags='-s -w -X main.Version=${{ github.ref_name || "dev" }}' -o ../build/github-hosts.darwin-amd64 .
-          GOOS=darwin GOARCH=arm64  go build -ldflags='-s -w -X main.Version=${{ github.ref_name || "dev" }}' -o ../build/github-hosts.darwin-arm64 .
-          # Linux
-          GOOS=linux GOARCH=amd64   go build -ldflags='-s -w -X main.Version=${{ github.ref_name || "dev" }}' -o ../build/github-hosts.linux-amd64 .
-          GOOS=linux GOARCH=386     go build -ldflags='-s -w -X main.Version=${{ github.ref_name || "dev" }}' -o ../build/github-hosts.linux-386 .
-          GOOS=linux GOARCH=arm64   go build -ldflags='-s -w -X main.Version=${{ github.ref_name || "dev" }}' -o ../build/github-hosts.linux-arm64 .
+          GOOS=darwin GOARCH=amd64  go build -ldflags="-s -w -X main.Version=${{ github.ref_name || 'dev' }}" -o ../build/github-hosts.darwin-amd64 .
+          GOOS=darwin GOARCH=arm64  go build -ldflags="-s -w -X main.Version=${{ github.ref_name || 'dev' }}" -o ../build/github-hosts.darwin-arm64 .
+          # Linux 
+          GOOS=linux GOARCH=amd64   go build -ldflags="-s -w -X main.Version=${{ github.ref_name || 'dev' }}" -o ../build/github-hosts.linux-amd64 .
+          GOOS=linux GOARCH=386     go build -ldflags="-s -w -X main.Version=${{ github.ref_name || 'dev' }}" -o ../build/github-hosts.linux-386 .
+          GOOS=linux GOARCH=arm64   go build -ldflags="-s -w -X main.Version=${{ github.ref_name || 'dev' }}" -o ../build/github-hosts.linux-arm64 .
 
       - name: Zip artifacts
         run: |
