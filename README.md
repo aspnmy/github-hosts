@@ -3,7 +3,7 @@
   <h1>github-hosts (NoKV)</h1>
 </div>
 
-> 本项目是基于 [TinsFox/github-hosts](https://github.com/TinsFox/github-hosts) 的 **NoKV** 分支，移除了 Cloudflare KV 存储依赖，每次请求实时 DNS 查询获取最新 IP 记录。
+> 本项目是基于 [TinsFox/github-hosts](https://github.com/TinsFox/github-hosts) 的 **main** 分支，移除了 Cloudflare KV 存储依赖，每次请求实时 DNS 查询获取最新 IP 记录。
 >
 > **为什么要移除 KV？** 原版使用 Cloudflare KV 存储数据，但 KV 免费配额容易耗尽（被刷），导致服务不可用。本版本彻底移除 KV，无需 KV 配额，永不下线。
 > 客户端每次访问接口都实时更新一下hosts地址列表，移除KV存储依赖，完全开源免费，永不下线。
@@ -12,7 +12,7 @@
 >
 > 克隆 NoKV 版本：`git clone -b nokv https://github.com/aspnmy/github-hosts.git`
 >
-> 原作者仓库：[https://github.com/TinsFox/github-hosts](https://github.com/TinsFox/github-hosts)
+> 原作者仓库(有KV依赖)：[https://github.com/TinsFox/github-hosts](https://github.com/TinsFox/github-hosts)
 
 ## 特性
 
