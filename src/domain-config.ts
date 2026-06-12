@@ -1,8 +1,10 @@
+import { Bindings } from "./types"
+
 const DEFAULT_TTL = 5 * 60 * 1000 // 5 minutes
 
 let cache: { domains: string[]; expires: number } | null = null
 
-export async function getDomains(env: any, ttlMs = DEFAULT_TTL): Promise<string[]> {
+export async function getDomains(env?: Bindings, ttlMs = DEFAULT_TTL): Promise<string[]> {
   if (cache && Date.now() < cache.expires) return cache.domains
 
   const url = env?.DOMAINS_URL ||

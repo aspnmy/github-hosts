@@ -1,0 +1,30 @@
+# gmem-edit-off.lock 文件
+# 用于控制 AI 助手对代码文件的修改权限
+# 格式：文件相对路径|状态
+# 状态说明：
+#   |on  - 允许 AI 助手修改此文件
+#   |off - 禁止 AI 助手修改此文件（已定稿的公共代码）
+#   文件编译报错时，不受off标签限制先进行debug修复
+
+# 核心库文件（禁止修改）
+scripts/main.go|off
+scripts/types.go|off
+scripts/banner.go|off
+scripts/config.go|off
+scripts/install.go|off
+scripts/uninstall.go|off
+scripts/log.go|off
+scripts/backup.go|off
+scripts/menu.go|off
+scripts/network.go|off
+scripts/cron.go|off
+scripts/utils.go|off
+src/index.ts|off
+src/types.ts|off
+src/constants.ts|off
+src/domain-config.ts|off
+src/services/hosts.ts|off
+src/middleware/rate-limit.ts|off
+domains.txt|off
+wrangler.toml|off
+package.json|off

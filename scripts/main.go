@@ -127,7 +127,7 @@ func main() {
 	}
 
 	clearScreen() // 启动时先清屏
-	fmt.Println(banner)
+	fmt.Print(banner)
 
 	app, err := NewApp()
 	if err != nil {
@@ -337,9 +337,9 @@ func (app *App) loadConfig() (*Config, error) {
 // waitForEnter 等待用户按回车并重新显示界面
 func waitForEnter() {
 	fmt.Print("\n按回车键继续...")
-	fmt.Scanln()        // 等待用户按下回车键
-	clearScreen()       // 清空控制台
-	fmt.Println(banner) // 重新显示 banner
+	fmt.Scanln()      // 等待用户按下回车键
+	clearScreen()     // 清空控制台
+	fmt.Print(banner) // 重新显示 banner
 }
 
 // checkInstallStatus 检查程序安装状态

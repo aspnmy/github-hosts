@@ -1,5 +1,6 @@
 import { DNS_PROVIDERS, HOSTS_TEMPLATE } from "../constants"
 import { getDomains } from "../domain-config"
+import { Bindings } from "../types"
 
 export type HostEntry = [string, string]
 
@@ -75,7 +76,7 @@ export async function fetchIPFromIPAddress(
   return null
 }
 
-export async function fetchLatestHostsData(env?: any): Promise<HostEntry[]> {
+export async function fetchLatestHostsData(env?: Bindings): Promise<HostEntry[]> {
   const entries: HostEntry[] = []
   const batchSize = 5
 

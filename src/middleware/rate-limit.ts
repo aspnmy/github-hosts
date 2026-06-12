@@ -1,9 +1,5 @@
 import { Context, MiddlewareHandler } from "hono"
-
-export interface RateLimitConfig {
-  limit: number
-  windowMs: number
-}
+import { RateLimitConfig } from "../types"
 
 const DEFAULT_CONFIG: RateLimitConfig = {
   limit: 60,
