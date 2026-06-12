@@ -32,12 +32,14 @@ jobs:
 
       - name: Zip artifacts
         run: |
+          cp scripts/github_hosts.sh build/
           cd build
           for f in *; do zip -j "${f}.zip" "$f"; done
+          rm -f *.exe github-hosts.darwin-* github-hosts.linux-* github_hosts.sh
         shell: bash
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: github-hosts-binaries
-          path: build/
+          path: build/*.zip
