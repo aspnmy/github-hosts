@@ -1,13 +1,14 @@
 <div align="center">
   <img src="public/logo.svg" width="140" height="140" alt="github-hosts logo">
-  <h1>github-hosts (NoKV)</h1>
+  <h1>github-hosts (NoKV-RustTcping)</h1>
 </div>
 
-> 本项目是基于 [TinsFox/github-hosts](https://github.com/TinsFox/github-hosts) 的 **main** 分支，移除了 Cloudflare KV 存储依赖，每次请求实时 DNS 查询获取最新 IP 记录。
+> 本项目是基于 [TinsFox/github-hosts](https://github.com/aspnmy/github-hosts) 的 **NoKV** 分支，主要通过在客户端引入tcping工具，对国内环境下不同节点ping目标域名以后获得**优选IP**，用于更改远程域名IP中造成的404错误等问题
 >
-> **为什么要移除 KV？** 原版使用 Cloudflare KV 存储数据，但 KV 免费配额容易耗尽（被刷），导致服务不可用。本版本彻底移除 KV，无需 KV 配额，永不下线。
-> 客户端每次访问接口都实时更新一下hosts地址列表，移除KV存储依赖，完全开源免费，永不下线。
->
+> **为什么要引入tcping业务？** NoKV分支中采用原作者方案，github的域名由1.1.1.1解析，但此地址在国内业务下不是最佳的，所以引入tcping业务，对国内环境下不同节点ping目标域名以后获得**优选IP**，这样以此获得更好的访问业务（被墙的域名无法访问）
+> **NoKV-RustTcping特点？**
+此分支全部采用rust语言重构，移除了go版本中影响效率的代码。
+
 > 在线地址：[https://hosts.earth-online.org](https://hosts.earth-online.org)
 >
 > 克隆 NoKV 版本：`git clone -b nokv https://github.com/aspnmy/github-hosts.git`
