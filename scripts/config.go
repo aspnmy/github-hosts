@@ -48,12 +48,13 @@ func (app *App) toggleAutoUpdate() error {
 		app.logWithLevel(SUCCESS, "自动更新已开启，更新间隔为 %d 分钟", config.UpdateInterval)
 	} else {
 		// 关闭自动更新时，移除定时任务
-		if runtime.GOOS == "darwin" {
+		switch runtime.GOOS {
+		case "darwin":
 			exec.Command("launchctl", "bootout", "system/com.github.hosts").Run()
 			os.Remove(darwinPlistPath)
-		} else if runtime.GOOS == "windows" {
+		case "windows":
 			exec.Command("schtasks", "/delete", "/tn", windowsTaskName, "/f").Run()
-		} else {
+		default:
 			os.Remove(linuxCronPath)
 		}
 		app.logWithLevel(SUCCESS, "自动更新已关闭")

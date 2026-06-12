@@ -42,12 +42,13 @@ func (app *App) uninstall() error {
 
 	// 2. 移除定时任务
 	app.logWithLevelOpt(INFO, false, "正在移除定时任务...")
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		exec.Command("launchctl", "bootout", "system/com.github.hosts").Run()
 		os.Remove(darwinPlistPath)
-	} else if runtime.GOOS == "windows" {
+	case "windows":
 		exec.Command("schtasks", "/delete", "/tn", windowsTaskName, "/f").Run()
-	} else {
+	default:
 		os.Remove(linuxCronPath)
 	}
 	app.logWithLevelOpt(SUCCESS, false, "定时任务已移除")
