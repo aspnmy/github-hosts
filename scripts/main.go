@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // checkAndElevateSudo 检查权限并在需要时提权
@@ -170,29 +171,31 @@ func main() {
 			fmt.Println("7.  检查系统状态")
 			fmt.Println("8.  查看更新日志")
 			fmt.Println("9.  打开配置目录")
-			fmt.Println("10. 系统诊断")
+			fmt.Println("10. 打开配置文件")
+			fmt.Println("11. 系统诊断")
 
 			fmt.Println("\n[备份管理]")
-			fmt.Println("11. 创建新备份")
-			fmt.Println("12. 恢复备份")
-			fmt.Println("13. 删除备份")
+			fmt.Println("12. 创建新备份")
+			fmt.Println("13. 恢复备份")
+			fmt.Println("14. 删除备份")
 
 			fmt.Println("\n[配置管理]")
-			fmt.Println("14. 导出配置")
-			fmt.Println("15. 导入配置")
+			fmt.Println("15. 导出配置")
+			fmt.Println("16. 导入配置")
+			fmt.Println("17. 时区设置")
 		}
 
 		fmt.Println("\n[程序更新]")
-		fmt.Println("16. 检查程序更新")
+		fmt.Println("18. 检查程序更新")
 
 		fmt.Println("\n[系统]")
-		fmt.Println("17. 打开 hosts 文件")
+		fmt.Println("19. 打开 hosts 文件")
 
 		fmt.Println("\n[关于]")
-		fmt.Println("18. 🐙 访问项目主页")
+		fmt.Println("20. 🐙 访问项目主页")
 
 		fmt.Println("\n0.  退出程序")
-		fmt.Printf("\n请输入选项 (0-18 或 q 退出): ")
+		fmt.Printf("\n请输入选项 (0-20 或 q 退出): ")
 
 		// 读取用户输入
 		var input string
@@ -214,7 +217,7 @@ func main() {
 		}
 
 		// 在未安装状态下限制某些选项的访问
-		if !installed && (choice >= 2 && choice <= 15) {
+		if !installed && (choice >= 2 && choice <= 17) {
 			fmt.Println("\n❌ 请先安装程序才能使用该功能")
 			waitForEnter()
 			continue
@@ -269,47 +272,57 @@ func main() {
 				log.Printf("打开配置目录失败: %v", err)
 			}
 			waitForEnter()
-		case 10: // 系统诊断
+		case 10: // 打开配置文件
+			if err := app.openConfigFile(); err != nil {
+				log.Printf("打开配置文件失败: %v", err)
+			}
+			waitForEnter()
+		case 11: // 系统诊断
 			if err := app.runDiagnostics(); err != nil {
 				log.Printf("系统诊断失败: %v", err)
 			}
 			waitForEnter()
-		case 11: // 创建新备份
+		case 12: // 创建新备份
 			if err := app.createNewBackup(); err != nil {
 				log.Printf("创建备份失败: %v", err)
 			}
 			waitForEnter()
-		case 12: // 恢复备份
+		case 13: // 恢复备份
 			if err := app.restoreBackupMenu(); err != nil {
 				log.Printf("恢复备份失败: %v", err)
 			}
 			waitForEnter()
-		case 13: // 删除备份
+		case 14: // 删除备份
 			if err := app.deleteBackupMenu(); err != nil {
 				log.Printf("删除备份失败: %v", err)
 			}
 			waitForEnter()
-		case 14: // 导出配置
+		case 15: // 导出配置
 			if err := app.exportConfigToFile(); err != nil {
 				log.Printf("导出配置失败: %v", err)
 			}
 			waitForEnter()
-		case 15: // 导入配置
+		case 16: // 导入配置
 			if err := app.importConfigFromFile(); err != nil {
 				log.Printf("导入配置失败: %v", err)
 			}
 			waitForEnter()
-		case 16: // 检查程序更新
+		case 17: // 时区设置
+			if err := app.changeTimeZone(); err != nil {
+				log.Printf("时区设置失败: %v", err)
+			}
+			waitForEnter()
+		case 18: // 检查程序更新
 			if err := runUpdateCheck(app); err != nil {
 				log.Printf("更新检查失败: %v", err)
 			}
 			waitForEnter()
-		case 17: // 打开 hosts 文件
+		case 19: // 打开 hosts 文件
 			if err := app.openHostsFile(); err != nil {
 				log.Printf("打开 hosts 文件失败: %v", err)
 			}
 			waitForEnter()
-		case 18: // 访问项目主页
+		case 20: // 访问项目主页
 			if err := app.openGitHubRepo(); err != nil {
 				log.Printf("打开项目主页失败: %v", err)
 			}
@@ -398,6 +411,7 @@ func (app *App) checkInstallStatus() (bool, *InstallStatus) {
 		UpdateInterval: 0,
 		LastUpdate:     "",
 		Version:        "v1.0.0", // 当前程序版本
+		TimeZone:       "",
 	}
 
 	// 检查配置文件是否存在
@@ -406,10 +420,15 @@ func (app *App) checkInstallStatus() (bool, *InstallStatus) {
 		status.IsInstalled = true
 		status.AutoUpdate = config.AutoUpdate
 		status.UpdateInterval = config.UpdateInterval
+		status.TimeZone = config.TimeZone
 
-		// 获取最后更新时间
-		if stat, err := os.Stat(app.configFile); err == nil {
-			status.LastUpdate = stat.ModTime().Format("2006-01-02 15:04:05")
+		// 获取最后更新时间（按配置时区显示）
+		loc, err := time.LoadLocation(config.TimeZone)
+		if err != nil {
+			loc = time.Local
+		}
+		if !config.LastUpdate.IsZero() {
+			status.LastUpdate = config.LastUpdate.In(loc).Format("2006-01-02 15:04:05 MST")
 		}
 	}
 
@@ -425,8 +444,9 @@ func (app *App) displayInstallStatus() {
 		fmt.Println("📦 安装状态: ✅ 已安装")
 		fmt.Printf("🔄 自动更新: %s\n", formatBool(status.AutoUpdate))
 		if status.AutoUpdate {
-			fmt.Printf("⏱️  更新间隔: %d 小时\n", status.UpdateInterval)
+			fmt.Printf("⏱️  更新间隔: %d 分钟\n", status.UpdateInterval)
 		}
+		fmt.Printf("🕒 系统时区: %s\n", status.TimeZone)
 		fmt.Printf("🕒 上次更新: %s\n", status.LastUpdate)
 		fmt.Printf("📌 程序版本: %s\n", status.Version)
 
@@ -472,6 +492,7 @@ type InstallStatus struct {
 	UpdateInterval int
 	LastUpdate     string
 	Version        string
+	TimeZone       string
 }
 
 // openHostsFile 打开 hosts 文件

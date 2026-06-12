@@ -55,9 +55,55 @@ func (app *App) openConfigDir() error {
 	return nil
 }
 
+// openConfigFile 直接打开配置文件 config.json
+//
+// 参数：
+//   - 无
+//
+// 返回值：
+//   - error: 如果系统命令执行失败或路径无效时返回错误
+//
+// 说明：
+//   - Windows: 使用 notepad 记事本打开 config.json
+//   - macOS:   使用 open 命令（默认用文本编辑器打开）
+//   - Linux:   使用 xdg-open（默认关联的文本编辑器打开）
+//   - 执行前会检查 config.json 文件是否存在，不存在则给出提示
+func (app *App) openConfigFile() error {
+	// 检查配置文件是否存在
+	if _, err := os.Stat(app.configFile); os.IsNotExist(err) {
+		return fmt.Errorf("配置文件不存在: %s（请先执行安装操作）", app.configFile)
+	}
+
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "darwin":
+		// macOS 使用 open -e 强制用默认文本编辑器打开
+		cmd = exec.Command("open", "-e", app.configFile)
+	case "linux":
+		// Linux 使用 xdg-open
+		cmd = exec.Command("xdg-open", app.configFile)
+	case "windows":
+		// Windows 使用 notepad 打开
+		cmd = exec.Command("notepad", app.configFile)
+	default:
+		return fmt.Errorf("不支持的操作系统: %s", runtime.GOOS)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("打开配置文件失败: %w", err)
+	}
+
+	app.logWithLevel(SUCCESS, "已打开配置文件: %s", app.configFile)
+	return nil
+}
+
 // showUpdateLogs 显示更新日志
 func (app *App) showUpdateLogs() error {
-	logFile := filepath.Join(app.logDir, fmt.Sprintf("update_%s.log", time.Now().Format("20060102")))
+	// 使用配置的时区生成日志文件名
+	loc, _ := app.getConfigTimeZone()
+	now := time.Now().In(loc)
+	logFile := filepath.Join(app.logDir, fmt.Sprintf("update_%s.log", now.Format("20060102")))
 
 	content, err := os.ReadFile(logFile)
 	if err != nil {
@@ -84,10 +130,18 @@ func (app *App) checkStatus() error {
 	if err != nil {
 		app.logWithLevel(ERROR, "配置文件检查失败: %v", err)
 	} else {
+		// 使用配置的时区格式化时间
+		loc, tzName := app.getConfigTimeZone()
+		lastUpdateStr := "(未记录)"
+		if !config.LastUpdate.IsZero() {
+			lastUpdateStr = config.LastUpdate.In(loc).Format("2006-01-02 15:04:05 MST")
+		}
+
 		app.logWithLevel(INFO, "配置文件状态:")
 		app.logWithLevel(INFO, "  • 更新间隔: %d 分钟", config.UpdateInterval)
 		app.logWithLevel(INFO, "  • 自动更新: %s", map[bool]string{true: "已启用", false: "已禁用"}[config.AutoUpdate])
-		app.logWithLevel(INFO, "  • 最后更新: %s", config.LastUpdate.Local().Format("2006-01-02 15:04:05"))
+		app.logWithLevel(INFO, "  • 系统时区: %s", tzName)
+		app.logWithLevel(INFO, "  • 最后更新: %s", lastUpdateStr)
 		app.logWithLevel(INFO, "  • 版本: %s", config.Version)
 	}
 

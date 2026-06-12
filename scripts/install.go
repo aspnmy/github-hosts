@@ -28,11 +28,17 @@ func (app *App) installMenu() error {
 		}
 
 		// 用户选择更新，直接执行更新操作
-		if err := app.updateHosts(); err != nil {
+		// 从配置中读取已设置的时区；若无配置，则使用系统本地时区
+		cfg, _ := app.loadConfig()
+		activeTimeZone := detectSystemTimeZoneName()
+		if cfg != nil && cfg.TimeZone != "" {
+			activeTimeZone = cfg.TimeZone
+		}
+		if err := app.updateHosts(activeTimeZone); err != nil {
 			app.logWithLevel(ERROR, "更新 hosts 失败: %v", err)
 			return fmt.Errorf("更新 hosts 失败: %w", err)
 		}
-		app.logWithLevel(SUCCESS, "hosts 文件更新完成")
+		app.logWithLevel(SUCCESS, "hosts 文件更新完成（时区: %s）", activeTimeZone)
 		return nil
 	}
 
@@ -90,16 +96,51 @@ func (app *App) installMenu() error {
 	app.logWithLevel(INFO, "  - 日志目录: %s", app.logDir)
 
 	// 2. Update config
-	app.logWithLevel(INFO, "第 2/4 步: 更新配置文件")
-	if err := app.updateConfig(interval, autoUpdate); err != nil {
+	app.logWithLevel(INFO, "第 2/5 步: 更新配置文件")
+
+	// 加载现有配置（用于判断是否已经设置过时区）
+	config, _ := app.loadConfig()
+	existingTimeZone := ""
+	if config != nil {
+		existingTimeZone = config.TimeZone
+	}
+
+	// 检测并设置时区
+	systemTZ := detectSystemTimeZoneName()
+	app.logWithLevel(INFO, "检测到系统时区: %s", systemTZ)
+
+	selectedTZ := systemTZ
+	if !isTimeZoneConfigured(existingTimeZone) {
+		// 逻辑一：客户端未设置过时区或使用默认时区，需要用户确认
+		app.logWithLevel(INFO, "尚未在配置中设置时区，需要您确认时区信息")
+		fmt.Printf("\n当前检测到的系统时区为: %s\n", systemTZ)
+		fmt.Println("请选择时区设置方式:")
+		fmt.Println("1. 使用系统检测到的时区（推荐）")
+		fmt.Println("2. 手动选择常见时区")
+		fmt.Print("请输入选项 (1-2): ")
+
+		var tzChoice int
+		fmt.Scanf("%d", &tzChoice)
+
+		if tzChoice == 2 {
+			selectedTZ = promptTimeZoneSelection()
+		}
+		app.logWithLevel(INFO, "已选择时区: %s", selectedTZ)
+	} else {
+		// 逻辑二：客户端已经配置了时区，直接引用
+		selectedTZ = existingTimeZone
+		app.logWithLevel(INFO, "使用配置文件中的时区: %s", selectedTZ)
+	}
+
+	if err := app.updateConfig(interval, autoUpdate, selectedTZ); err != nil {
 		app.logWithLevel(ERROR, "更新配置失败: %v", err)
 		return fmt.Errorf("更新配置失败: %w", err)
 	}
-	app.logWithLevel(SUCCESS, "配置文件更新完成")
+	app.logWithLevel(SUCCESS, "配置文件更新完成（时区: %s）", selectedTZ)
 
 	// 3. Update hosts
-	app.logWithLevel(INFO, "第 3/4 步: 更新 hosts 文件")
-	if err := app.updateHosts(); err != nil {
+	app.logWithLevel(INFO, "第 3/5 步: 更新 hosts 文件")
+	if err := app.updateHosts(selectedTZ); err != nil {
 		app.logWithLevel(ERROR, "更新 hosts 失败: %v", err)
 		return fmt.Errorf("更新 hosts 失败: %w", err)
 	}
@@ -107,7 +148,7 @@ func (app *App) installMenu() error {
 
 	// 4. Setup cron
 	if autoUpdate {
-		app.logWithLevel(INFO, "第 4/4 步: 设置定时更新任务")
+		app.logWithLevel(INFO, "第 4/5 步: 设置定时更新任务")
 		if err := app.setupCron(interval); err != nil {
 			app.logWithLevel(ERROR, "设置定时任务失败: %v", err)
 			return fmt.Errorf("设置定时任务失败: %w", err)
@@ -117,13 +158,14 @@ func (app *App) installMenu() error {
 		app.logWithLevel(INFO, "已跳过定时任务设置（自动更新已禁用）")
 	}
 
-	// 显示安装完成信息
+	// 5. 显示安装完成信息
 	app.logWithLevel(SUCCESS, "安装完成！")
 	app.logWithLevel(INFO, "系统配置信息：")
 	if autoUpdate {
 		app.logWithLevel(INFO, "  • 更新间隔: 每 %d 分钟", interval)
 	}
 	app.logWithLevel(INFO, "  • 自动更新: %s", map[bool]string{true: "已启用", false: "已禁用"}[autoUpdate])
+	app.logWithLevel(INFO, "  • 当前时区: %s", selectedTZ)
 	app.logWithLevel(INFO, "  • 配置文件: %s", app.configFile)
 	app.logWithLevel(INFO, "  • 日志文件: %s", filepath.Join(app.logDir, "update.log"))
 	app.logWithLevel(INFO, "  • 备份目录: %s", app.backupDir)
@@ -158,12 +200,33 @@ func (app *App) setupDirectories() error {
 	return nil
 }
 
-func (app *App) updateConfig(interval int, autoUpdate bool) error {
+// updateConfig 更新配置文件
+//
+// 参数：
+//   - interval:   自动更新间隔，单位分钟
+//   - autoUpdate: 是否开启自动更新
+//   - timeZone:   IANA 时区名称（如 Asia/Shanghai、America/New_York），为空则使用系统本地时区
+//
+// 返回值：
+//   - error: 写入文件失败时返回错误
+func (app *App) updateConfig(interval int, autoUpdate bool, timeZone string) error {
+	// 若未提供时区，使用系统本地时区名称
+	if timeZone == "" {
+		timeZone = detectSystemTimeZoneName()
+	}
+
+	// 将 LastUpdate 时间转换到配置的时区
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		loc = time.Local
+	}
+
 	config := Config{
 		UpdateInterval: interval,
-		LastUpdate:     time.Now().UTC(),
+		LastUpdate:     time.Now().In(loc),
 		Version:        "1.0.0",
 		AutoUpdate:     autoUpdate,
+		TimeZone:       timeZone,
 	}
 
 	data, err := json.MarshalIndent(config, "", "    ")
@@ -174,7 +237,14 @@ func (app *App) updateConfig(interval int, autoUpdate bool) error {
 	return os.WriteFile(app.configFile, data, 0644)
 }
 
-func (app *App) updateHosts() error {
+// updateHosts 从服务器获取最新 hosts 数据并更新本地 hosts 文件
+//
+// 参数：
+//   - timeZone: IANA 时区名称，用于在 hosts 文件中显示更新时间戳
+//
+// 返回值：
+//   - error: 更新失败时返回错误，包含具体阶段信息（备份/清理/下载/写入/刷新 DNS）
+func (app *App) updateHosts(timeZone string) error {
 	app.logWithLevel(INFO, "开始备份当前 hosts 文件")
 	if err := app.backupHosts(); err != nil {
 		return fmt.Errorf("backup failed: %w", err)
@@ -212,9 +282,15 @@ func (app *App) updateHosts() error {
 	}
 	defer f.Close()
 
-	// 添加开始标记和更新时间
-	startMarker := fmt.Sprintf("\n# ===== GitHub Hosts Start ===== \n# (Updated: %s)\n",
-		time.Now().Format("2006-01-02 15:04:05"))
+	// 根据配置时区显示更新时间
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		loc = time.Local
+	}
+	updateTime := time.Now().In(loc).Format("2006-01-02 15:04:05 MST")
+
+	startMarker := fmt.Sprintf("\n# ===== GitHub Hosts Start ===== \n# (Updated: %s, Timezone: %s)\n",
+		updateTime, timeZone)
 	if _, err := f.WriteString(startMarker); err != nil {
 		return fmt.Errorf("failed to write start marker: %w", err)
 	}

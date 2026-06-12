@@ -21,6 +21,7 @@ type Config struct {
 	LastUpdate     time.Time `json:"lastUpdate"`
 	Version        string    `json:"version"`
 	AutoUpdate     bool      `json:"autoUpdate"`
+	TimeZone       string    `json:"timezone"`
 }
 
 // LogLevel 定义日志级别
