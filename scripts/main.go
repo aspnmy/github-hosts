@@ -165,16 +165,25 @@ func main() {
 			fmt.Println("8.  查看更新日志")
 			fmt.Println("9.  打开配置目录")
 			fmt.Println("10. 系统诊断")
+
+			fmt.Println("\n[备份管理]")
+			fmt.Println("11. 创建新备份")
+			fmt.Println("12. 恢复备份")
+			fmt.Println("13. 删除备份")
+
+			fmt.Println("\n[配置管理]")
+			fmt.Println("14. 导出配置")
+			fmt.Println("15. 导入配置")
 		}
 
 		fmt.Println("\n[系统]")
-		fmt.Println("11. 打开 hosts 文件")
+		fmt.Println("16. 打开 hosts 文件")
 
 		fmt.Println("\n[关于]")
-		fmt.Println("12. 🐙 访问项目主页")
+		fmt.Println("17. 🐙 访问项目主页")
 
 		fmt.Println("\n0.  退出程序")
-		fmt.Printf("\n请输入选项 (0-12 或 q 退出): ")
+		fmt.Printf("\n请输入选项 (0-17 或 q 退出): ")
 
 		// 读取用户输入
 		var input string
@@ -196,7 +205,7 @@ func main() {
 		}
 
 		// 在未安装状态下限制某些选项的访问
-		if !installed && (choice >= 2 && choice <= 10) {
+		if !installed && (choice >= 2 && choice <= 15) {
 			fmt.Println("\n❌ 请先安装程序才能使用该功能")
 			waitForEnter()
 			continue
@@ -256,12 +265,37 @@ func main() {
 				log.Printf("系统诊断失败: %v", err)
 			}
 			waitForEnter()
-		case 11: // 打开 hosts 文件
+		case 11: // 创建新备份
+			if err := app.createNewBackup(); err != nil {
+				log.Printf("创建备份失败: %v", err)
+			}
+			waitForEnter()
+		case 12: // 恢复备份
+			if err := app.restoreBackupMenu(); err != nil {
+				log.Printf("恢复备份失败: %v", err)
+			}
+			waitForEnter()
+		case 13: // 删除备份
+			if err := app.deleteBackupMenu(); err != nil {
+				log.Printf("删除备份失败: %v", err)
+			}
+			waitForEnter()
+		case 14: // 导出配置
+			if err := app.exportConfigToFile(); err != nil {
+				log.Printf("导出配置失败: %v", err)
+			}
+			waitForEnter()
+		case 15: // 导入配置
+			if err := app.importConfigFromFile(); err != nil {
+				log.Printf("导入配置失败: %v", err)
+			}
+			waitForEnter()
+		case 16: // 打开 hosts 文件
 			if err := app.openHostsFile(); err != nil {
 				log.Printf("打开 hosts 文件失败: %v", err)
 			}
 			waitForEnter()
-		case 12: // 访问项目主页
+		case 17: // 访问项目主页
 			if err := app.openGitHubRepo(); err != nil {
 				log.Printf("打开项目主页失败: %v", err)
 			}
