@@ -10,6 +10,10 @@ import (
 // defaultVersion 版本号托底值：当 .version 文件不存在或为空时使用
 const defaultVersion = "v0.0.0.1_nokv"
 
+// Version 编译时通过 ldflags 注入的版本号
+// 编译时使用：go build -ldflags "-X main.Version=v0.0.0.2_nokv"
+var Version string
+
 // getVersionFilePath 获取 .version 文件的绝对路径（位于当前可执行文件所在目录）
 //
 // 参数：
@@ -30,34 +34,38 @@ func getVersionFilePath() (string, error) {
 	return filepath.Join(filepath.Dir(real), ".version"), nil
 }
 
-// getAppVersion 从可执行文件同目录下的 .version 文件读取当前版本号
+// getAppVersion 获取当前程序的版本号
 //
 // 参数：
 //   - 无
 //
 // 返回值：
-//   - string: 版本号；若文件不存在或为空则返回托底值 defaultVersion
+//   - string: 版本号；优先使用编译时注入的版本，其次读取 .version 文件，最后使用托底值
 //
-// 说明：
-//  1. 尝试读取可执行文件同目录下的 .version 文件
-//  2. 若文件不存在或读取失败，返回 defaultVersion
-//  3. 自动去除空白字符和换行
+// 优先级：
+//  1. 编译时通过 -ldflags "-X main.Version=xxx" 注入的版本号
+//  2. 可执行文件同目录下的 .version 文件
+//  3. 托底值 defaultVersion
 func getAppVersion() string {
+	// 优先级 1: ldflags 注入的版本号
+	if Version != "" {
+		return Version
+	}
+
+	// 优先级 2: .version 文件
 	versionPath, err := getVersionFilePath()
-	if err != nil {
-		return defaultVersion
+	if err == nil {
+		content, err := os.ReadFile(versionPath)
+		if err == nil {
+			version := strings.TrimSpace(string(content))
+			if version != "" {
+				return version
+			}
+		}
 	}
 
-	content, err := os.ReadFile(versionPath)
-	if err != nil {
-		return defaultVersion
-	}
-
-	version := strings.TrimSpace(string(content))
-	if version == "" {
-		return defaultVersion
-	}
-	return version
+	// 优先级 3: 托底值
+	return defaultVersion
 }
 
 // ensureVersionFile 确保 .version 文件存在；若不存在则写入当前版本号

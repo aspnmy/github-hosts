@@ -25,14 +25,17 @@ jobs:
         working-directory: ./scripts
         run: |
           set -e
+          # 从项目根目录的 .version 文件读取版本号并注入到二进制中
+          VERSION=$(tr -d '[:space:]' < ../.version)
+          echo "构建版本: $VERSION"
           mkdir -p ../build
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o ../build/github-hosts.windows-amd64.exe .
-          GOOS=windows GOARCH=386   go build -ldflags="-s -w" -o ../build/github-hosts.windows-386.exe .
-          GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w" -o ../build/github-hosts.darwin-amd64 .
-          GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w" -o ../build/github-hosts.darwin-arm64 .
-          GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w" -o ../build/github-hosts.linux-amd64 .
-          GOOS=linux   GOARCH=386   go build -ldflags="-s -w" -o ../build/github-hosts.linux-386 .
-          GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w" -o ../build/github-hosts.linux-arm64 .
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.Version=$VERSION" -o ../build/github-hosts.windows-amd64.exe .
+          GOOS=windows GOARCH=386   go build -ldflags="-s -w -X main.Version=$VERSION" -o ../build/github-hosts.windows-386.exe .
+          GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w -X main.Version=$VERSION" -o ../build/github-hosts.darwin-amd64 .
+          GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w -X main.Version=$VERSION" -o ../build/github-hosts.darwin-arm64 .
+          GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w -X main.Version=$VERSION" -o ../build/github-hosts.linux-amd64 .
+          GOOS=linux   GOARCH=386   go build -ldflags="-s -w -X main.Version=$VERSION" -o ../build/github-hosts.linux-386 .
+          GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w -X main.Version=$VERSION" -o ../build/github-hosts.linux-arm64 .
 
       - name: Zip artifacts
         run: |
