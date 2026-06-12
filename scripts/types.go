@@ -34,7 +34,7 @@ const (
 )
 
 const (
-	MaxMenuOption = 12 // Maximum menu option number
+	MaxMenuOption = 18 // Maximum menu option number
 )
 
 // displayOption 定义菜单选项

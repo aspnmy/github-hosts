@@ -126,8 +126,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 首次运行：确保 .version 文件存在（若不存在则写入当前版本号）
+	_ = ensureVersionFile()
+
 	clearScreen() // 启动时先清屏
-	fmt.Print(banner)
+	fmt.Print(getBanner())
+
+	// 启动时静默检查是否有新版本
+	runSilentUpdateCheck()
 
 	app, err := NewApp()
 	if err != nil {
@@ -176,14 +182,17 @@ func main() {
 			fmt.Println("15. 导入配置")
 		}
 
+		fmt.Println("\n[程序更新]")
+		fmt.Println("16. 检查程序更新")
+
 		fmt.Println("\n[系统]")
-		fmt.Println("16. 打开 hosts 文件")
+		fmt.Println("17. 打开 hosts 文件")
 
 		fmt.Println("\n[关于]")
-		fmt.Println("17. 🐙 访问项目主页")
+		fmt.Println("18. 🐙 访问项目主页")
 
 		fmt.Println("\n0.  退出程序")
-		fmt.Printf("\n请输入选项 (0-17 或 q 退出): ")
+		fmt.Printf("\n请输入选项 (0-18 或 q 退出): ")
 
 		// 读取用户输入
 		var input string
@@ -290,12 +299,17 @@ func main() {
 				log.Printf("导入配置失败: %v", err)
 			}
 			waitForEnter()
-		case 16: // 打开 hosts 文件
+		case 16: // 检查程序更新
+			if err := runUpdateCheck(app); err != nil {
+				log.Printf("更新检查失败: %v", err)
+			}
+			waitForEnter()
+		case 17: // 打开 hosts 文件
 			if err := app.openHostsFile(); err != nil {
 				log.Printf("打开 hosts 文件失败: %v", err)
 			}
 			waitForEnter()
-		case 17: // 访问项目主页
+		case 18: // 访问项目主页
 			if err := app.openGitHubRepo(); err != nil {
 				log.Printf("打开项目主页失败: %v", err)
 			}
@@ -371,9 +385,9 @@ func (app *App) loadConfig() (*Config, error) {
 // waitForEnter 等待用户按回车并重新显示界面
 func waitForEnter() {
 	fmt.Print("\n按回车键继续...")
-	fmt.Scanln()      // 等待用户按下回车键
-	clearScreen()     // 清空控制台
-	fmt.Print(banner) // 重新显示 banner
+	fmt.Scanln()           // 等待用户按下回车键
+	clearScreen()          // 清空控制台
+	fmt.Print(getBanner()) // 重新显示 banner
 }
 
 // checkInstallStatus 检查程序安装状态
