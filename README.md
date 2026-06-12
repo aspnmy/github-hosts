@@ -44,7 +44,7 @@
    - Windows：`ipconfig /flushdns`
    - MacOS：`sudo killall -HUP mDNSResponder`
    - Linux：`sudo systemd-resolve --flush-caches`
-   
+
 <h4>Windows 用户</h4>
   <p>在管理员权限的 PowerShell 中执行：</p>
   <pre><code class="language-powershell">irm https://github.com/aspnmy/github-hosts/releases/tag/v0.0.0.1_nokv/github-hosts.windows-amd64.exe | iex</code></pre>
@@ -62,7 +62,7 @@
 - `POST /reset` - 重新获取所有数据（需要 API 密钥）
 
 ## 常见问题
-
+- 对阉割的高度定制化linux系统的支持：scripts\github_hosts.sh 脚本专门用于一些高度定制化系统的运行，比如绿联云DX4600系列未升级的版本
 ### 权限问题
 - Windows：需要以管理员身份运行
 - MacOS/Linux：需要 sudo 权限
