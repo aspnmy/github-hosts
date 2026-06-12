@@ -44,7 +44,7 @@ jobs:
           cp scripts/github_hosts.sh build/
           cd build
           for f in *; do zip -j "${f}.zip" "$f"; done
-          rm -f *.exe github-hosts.darwin-* github-hosts.linux-* github_hosts.sh
+          find . -maxdepth 1 -type f ! -name "*.zip" -delete
         shell: bash
 
       - name: Create GitHub Release and upload assets
