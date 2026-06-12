@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -22,17 +23,16 @@ func (app *App) toggleAutoUpdate() error {
 
 	fmt.Printf("\n当前自动更新已%s，是否%s？[y/N]: ", currentStatus, targetStatus)
 
-	var response string
-	fmt.Scanf("%s", &response)
+	response := promptString("")
 
 	if response != "y" && response != "Y" {
 		app.logWithLevel(INFO, "保持当前状态不变")
 		return nil
 	}
 
-	// 更新配置（保留原有时区设置）
+	// 更新配置（保留原有时区设置，使用 updateConfigSettings 不重置 LastUpdate）
 	config.AutoUpdate = !config.AutoUpdate
-	if err := app.updateConfig(config.UpdateInterval, config.AutoUpdate, config.TimeZone); err != nil {
+	if err := app.updateConfigSettings(config.UpdateInterval, config.AutoUpdate, config.TimeZone); err != nil {
 		return fmt.Errorf("更新配置失败: %w", err)
 	}
 
@@ -40,9 +40,9 @@ func (app *App) toggleAutoUpdate() error {
 		// 开启自动更新时，设置定时任务
 		if err := app.setupCron(config.UpdateInterval); err != nil {
 			app.logWithLevel(ERROR, "设置定时任务失败: %v", err)
-			// 回滚配置
+			// 回滚配置（使用 updateConfigSettings，不重置 LastUpdate）
 			config.AutoUpdate = false
-			app.updateConfig(config.UpdateInterval, false, config.TimeZone)
+			app.updateConfigSettings(config.UpdateInterval, false, config.TimeZone)
 			return fmt.Errorf("设置定时任务失败: %w", err)
 		}
 		app.logWithLevel(SUCCESS, "自动更新已开启，更新间隔为 %d 分钟", config.UpdateInterval)
@@ -75,8 +75,7 @@ func (app *App) changeUpdateInterval() error {
 	fmt.Println("2. 每 60 分钟")
 	fmt.Println("3. 每 120 分钟")
 
-	var choice int
-	fmt.Scanf("%d", &choice)
+	choice, err := promptInt("请输入选项 (1-3): ")
 
 	var interval int
 	switch choice {
@@ -90,8 +89,8 @@ func (app *App) changeUpdateInterval() error {
 		return fmt.Errorf("无效的选项")
 	}
 
-	// 更新配置（保留原有时区设置）
-	if err := app.updateConfig(interval, config.AutoUpdate, config.TimeZone); err != nil {
+	// 更新配置（保留原有时区/LastUpdate，使用 updateConfigSettings）
+	if err := app.updateConfigSettings(interval, config.AutoUpdate, config.TimeZone); err != nil {
 		return fmt.Errorf("更新配置失败: %w", err)
 	}
 
@@ -106,41 +105,72 @@ func (app *App) changeUpdateInterval() error {
 	return nil
 }
 
-// detectSystemTimeZoneName 检测当前系统的本地时区名称（IANA 标准）
+// detectSystemTimeZoneName 检测当前系统的本地时区名称（优先 IANA 标准名）
 //
 // 参数：
 //   - 无
 //
 // 返回值：
-//   - string: 时区名称（如 Asia/Shanghai、America/New_York）；若无法获取则返回 "UTC"
+//   - string: 时区名称；若无法获取则返回 "UTC"
 //
 // 说明：
-//   先尝试读取系统本地时区的 name，若 Go 运行时无法解析则返回 UTC
+//   - Windows：先尝试 tzutil /g 获取 Windows 时区名（Go 在 Windows 上支持这种名称）
+//   - Unix：优先使用 time.Local.String()（如 "Asia/Shanghai"）
+//   - 回退：time.Now().Zone() 缩写 + TZ 环境变量 + 最终 UTC兜底
 func detectSystemTimeZoneName() string {
-	// 从 time.Local 中获取时区名称
+	// ---------- Windows 特殊处理 ----------
+	if runtime.GOOS == "windows" {
+		// 方案一：调用 tzutil /g 获取 Windows 时区名（如 "China Standard Time"）
+		cmd := exec.Command("tzutil", "/g")
+		if output, err := cmd.Output(); err == nil {
+			tzName := strings.TrimSpace(string(output))
+			if tzName != "" {
+				// 在 Go 1.15+ 的 Windows 实现中，time.LoadLocation 对部分 Windows 时区名有映射
+				if _, err := time.LoadLocation(tzName); err == nil {
+					return tzName
+				}
+				// Windows 时区名在 Go 中不支持时，用 commonTimeZones 中的第一个匹配项
+				lower := strings.ToLower(tzName)
+				for _, ianaName := range commonTimeZones() {
+					if strings.Contains(lower, strings.ToLower(ianaName)) {
+						return ianaName
+					}
+				}
+				// 否则返回原 Windows 名称，调用方的 time.LoadLocation 在 Windows 上有机会识别
+				return tzName
+			}
+		}
+		// 方案二：回退到 time.Local.String()
+		if loc := time.Local.String(); loc != "Local" && loc != "" {
+			if _, err := time.LoadLocation(loc); err == nil {
+				return loc
+			}
+			return loc
+		}
+	}
+
+	// ---------- Unix (Linux / macOS) 处理 ----------
+	// 方案一：time.Zone() 返回缩写（如 CST），验证是否可作为 IANA 名
 	name, _ := time.Now().Zone()
 	if name != "" && name != "Local" {
-		// 尝试加载该名称以验证是否为有效 IANA 名称
 		if _, err := time.LoadLocation(name); err == nil {
 			return name
 		}
 	}
 
-	// 在常见的系统环境变量中读取
-	for _, env := range []string{"TZ"} {
-		if val := os.Getenv(env); val != "" {
-			if _, err := time.LoadLocation(val); err == nil {
-				return val
-			}
+	// 方案二：TZ 环境变量
+	if val := os.Getenv("TZ"); val != "" {
+		if _, err := time.LoadLocation(val); err == nil {
+			return val
 		}
 	}
 
-	// 最后退回本地时区对象的名称
+	// 方案三：time.Local.String()（在 Unix 上通常是 IANA 名）
 	if loc := time.Local.String(); loc != "Local" && loc != "" {
 		return loc
 	}
 
-	// 兜底：使用 UTC
+	// 兜底：UTC
 	return "UTC"
 }
 
@@ -153,8 +183,9 @@ func detectSystemTimeZoneName() string {
 //   - bool: 如果已设置（非空字符串）则返回 true
 //
 // 说明：
-//   首次安装时 Config.TimeZone 为空字符串，此时用户需要确认时区；
-//   后续再次运行安装向导时，已设置的时区划被视为已配置，直接引用即可
+//
+//	首次安装时 Config.TimeZone 为空字符串，此时用户需要确认时区；
+//	后续再次运行安装向导时，已设置的时区划被视为已配置，直接引用即可
 func isTimeZoneConfigured(tz string) bool {
 	return tz != ""
 }
@@ -168,21 +199,21 @@ func isTimeZoneConfigured(tz string) bool {
 //   - []string: 常见 IANA 时区列表
 func commonTimeZones() []string {
 	return []string{
-		"Asia/Shanghai",     // 中国标准时间（北京）
-		"Asia/Hong_Kong",    // 香港
-		"Asia/Tokyo",        // 日本
-		"Asia/Singapore",    // 新加坡
-		"Asia/Dubai",        // 阿联酋
-		"Asia/Kolkata",      // 印度
-		"Europe/London",     // 英国
-		"Europe/Paris",      // 法国/德国
-		"Europe/Moscow",     // 俄罗斯
-		"America/New_York",  // 美国东部
-		"America/Chicago",   // 美国中部
+		"Asia/Shanghai",       // 中国标准时间（北京）
+		"Asia/Hong_Kong",      // 香港
+		"Asia/Tokyo",          // 日本
+		"Asia/Singapore",      // 新加坡
+		"Asia/Dubai",          // 阿联酋
+		"Asia/Kolkata",        // 印度
+		"Europe/London",       // 英国
+		"Europe/Paris",        // 法国/德国
+		"Europe/Moscow",       // 俄罗斯
+		"America/New_York",    // 美国东部
+		"America/Chicago",     // 美国中部
 		"America/Los_Angeles", // 美国西部
-		"America/Sao_Paulo", // 巴西
-		"Australia/Sydney",  // 澳大利亚
-		"UTC",               // 国际协调时间
+		"America/Sao_Paulo",   // 巴西
+		"Australia/Sydney",    // 澳大利亚
+		"UTC",                 // 国际协调时间
 	}
 }
 
@@ -195,7 +226,8 @@ func commonTimeZones() []string {
 //   - string: 用户选择的 IANA 时区名称（选择无效时默认 Asia/Shanghai）
 //
 // 说明：
-//   在安装向导（逻辑一）中，当用户选择「手动选择时区」时调用此函数
+//
+//	在安装向导（逻辑一）中，当用户选择「手动选择时区」时调用此函数
 func promptTimeZoneSelection() string {
 	zones := commonTimeZones()
 
@@ -203,10 +235,11 @@ func promptTimeZoneSelection() string {
 	for i, z := range zones {
 		fmt.Printf("  %d. %s\n", i+1, z)
 	}
-	fmt.Print("请输入选项: ")
-
-	var choice int
-	fmt.Scanf("%d", &choice)
+	choice, err := promptInt("请输入选项: ")
+	if err != nil {
+		fmt.Println("无效的输入，使用默认时区 Asia/Shanghai")
+		return "Asia/Shanghai"
+	}
 
 	if choice < 1 || choice > len(zones) {
 		fmt.Println("无效的选项，使用默认时区 Asia/Shanghai")
@@ -224,9 +257,9 @@ func promptTimeZoneSelection() string {
 //   - error: 读取配置或写入配置失败时返回错误
 //
 // 说明：
-//   1. 显示当前使用的时区
-//   2. 提供用户重新检测系统时区、或手动选择其他时区的选项
-//   3. 保存新的时区到配置文件
+//  1. 显示当前使用的时区
+//  2. 提供用户重新检测系统时区、或手动选择其他时区的选项
+//  3. 保存新的时区到配置文件
 func (app *App) changeTimeZone() error {
 	config, err := app.loadConfig()
 	if err != nil {
@@ -239,9 +272,7 @@ func (app *App) changeTimeZone() error {
 	fmt.Println("1. 使用系统检测到的本地时区")
 	fmt.Println("2. 手动从常见时区中选择")
 
-	var choice int
-	fmt.Print("请输入选项 (1-2): ")
-	fmt.Scanf("%d", &choice)
+	choice, err := promptInt("请输入选项 (1-2): ")
 
 	newTZ := config.TimeZone
 	switch choice {
@@ -258,7 +289,7 @@ func (app *App) changeTimeZone() error {
 		return fmt.Errorf("时区 %s 无效: %w", newTZ, err)
 	}
 
-	if err := app.updateConfig(config.UpdateInterval, config.AutoUpdate, newTZ); err != nil {
+	if err := app.updateConfigSettings(config.UpdateInterval, config.AutoUpdate, newTZ); err != nil {
 		return fmt.Errorf("更新配置失败: %w", err)
 	}
 
@@ -276,7 +307,8 @@ func (app *App) changeTimeZone() error {
 //   - string:         时区名称（供显示/日志使用）
 //
 // 说明：
-//   用于统一时间格式化和日志输出时的时区引用
+//
+//	用于统一时间格式化和日志输出时的时区引用
 func (app *App) getConfigTimeZone() (*time.Location, string) {
 	config, err := app.loadConfig()
 	var tzName string
@@ -312,9 +344,7 @@ func (app *App) exportConfigToFile() error {
 
 // importConfigFromFile 从文件导入配置
 func (app *App) importConfigFromFile() error {
-	fmt.Print("请输入配置文件路径: ")
-	var path string
-	fmt.Scanf("%s", &path)
+	path := promptString("请输入配置文件路径: ")
 
 	data, err := os.ReadFile(path)
 	if err != nil {

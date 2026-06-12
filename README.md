@@ -113,29 +113,31 @@ sudo crontab -e
 
 ### 4. Go 客户端功能菜单说明
 
-运行编译后的 `github-hosts` 程序会进入一个交互式的文本菜单（需管理员 / root 权限）。下面是各选项的说明：
+运行编译后的 `github-hosts` 程序会进入一个交互式的文本菜单（需管理员 / root 权限）。下面是各选项的说明（当前菜单共 20 项 + 退出）：
 
-| 选项 | 功能 | 对应实现文件/函数 |
-|------|------|-------------------|
-| 1 | **安装 / 更新**：下载最新 GitHub hosts 并合并到系统 hosts 文件。首次运行即为安装，后续运行会更新原有区块。 | [install.go](file:///v:/git_data/github-hosts/scripts/install.go) `installMenu()` / `updateHosts()` |
-| 2 | **卸载程序**：清除本程序写入 hosts 的 GitHub 区块，并移除配置目录与定时任务。 | [uninstall.go](file:///v:/git_data/github-hosts/scripts/uninstall.go) `uninstall()` / `cleanHostsFile()` |
-| 3 | **查看 hosts**：在终端显示当前系统 hosts 文件中的 GitHub 相关解析条目，并统计条目数量。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `showHostsContent()` |
-| 4 | **开启自动更新**：为当前用户注册后台定时任务（Windows 使用任务计划程序，Linux/macOS 使用 cron），定期刷新 hosts。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `toggleAutoUpdate()` / [cron.go](file:///v:/git_data/github-hosts/scripts/cron.go) `scheduleUpdate()` |
-| 5 | **修改更新间隔**：在 15 / 30 / 60 / 120 分钟四个档位中切换。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `changeUpdateInterval()` |
-| 6 | **测试网络连接**：依次测试 `github.com`、`hosts.earth-online.org` 等关键域名的 DNS 与 HTTPS 可达性。 | [network.go](file:///v:/git_data/github-hosts/scripts/network.go) `testConnection()` |
-| 7 | **检查系统状态**：显示安装状态、当前版本号（来自 <code>.version</code>）、hosts 区块条目数量、配置目录路径与定时任务状态。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `checkStatus()` / [main.go](file:///v:/git_data/github-hosts/scripts/main.go) `displayInstallStatus()` |
-| 8 | **查看更新日志**：读取本程序日志目录下的运行日志，供诊断问题。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `showUpdateLogs()` |
-| 9 | **打开配置目录**：定位并打开本程序生成的配置文件目录（存放 <code>.version</code>、配置、备份）。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `openConfigDir()` |
-| 10 | **系统诊断**：汇总权限、网络、DNS、配置目录、hosts 文件内容等信息，输出一份可复制的诊断报告。 | [utils.go](file:///v:/git_data/github-hosts/scripts/utils.go) `runDiagnostics()` |
-| 11 | **创建新备份**：将当前系统 hosts 文件复制为带时间戳的备份文件。 | [backup.go](file:///v:/git_data/github-hosts/scripts/backup.go) `createNewBackup()` |
-| 12 | **恢复备份**：列出所有备份并交互式选择其一，恢复后当前 hosts 会被覆盖（恢复前自动再做一次备份）。 | [backup.go](file:///v:/git_data/github-hosts/scripts/backup.go) `restoreBackupMenu()` / `restoreBackup()` |
-| 13 | **删除备份**：列出所有备份并交互式删除指定备份。 | [backup.go](file:///v:/git_data/github-hosts/scripts/backup.go) `deleteBackupMenu()` |
-| 14 | **导出配置**：将当前程序的配置（更新间隔、是否自动更新等）导出为 JSON 文件。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `exportConfigToFile()` |
-| 15 | **导入配置**：从 JSON 文件读取配置并覆盖当前设置。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `importConfigFromFile()` |
-| 16 | **检查程序更新**：访问 GitHub Releases 比对 tag 与本地 <code>.version</code> 文件，发现新版本后可下载替换。 | [update.go](file:///v:/git_data/github-hosts/scripts/update.go) `runUpdateCheck()` / `performUpdate()` |
-| 17 | **打开 hosts 文件**：使用系统默认编辑器打开 <code>C:\Windows\System32\drivers\etc\hosts</code> 或 <code>/etc/hosts</code>。 | [main.go](file:///v:/git_data/github-hosts/scripts/main.go) `openHostsFile()` |
-| 18 | **访问项目主页**：在浏览器中打开 <code>https://github.com/aspnmy/github-hosts</code>。 | [main.go](file:///v:/git_data/github-hosts/scripts/main.go) `openGitHubRepo()` |
-| 0 | **退出程序** | — |
+| 分区 | 选项 | 功能 | 对应实现文件 / 函数 |
+|------|------|------|-------------------|
+| 基础功能 | 1 | **安装 / 更新**：下载最新 GitHub hosts 并合并到系统 hosts 文件。首次运行即为安装，后续会更新原有区块。 | [install.go](file:///v:/git_data/github-hosts/scripts/install.go) `installMenu()` / `updateHosts()` |
+| 基础功能 | 2 | **卸载程序**：清除本程序写入 hosts 的 GitHub 区块，并移除配置目录与定时任务。 | [uninstall.go](file:///v:/git_data/github-hosts/scripts/uninstall.go) `uninstall()` / `cleanHostsFile()` |
+| 基础功能 | 3 | **查看 hosts 内容**：在终端显示当前系统 hosts 文件中的 GitHub 相关解析条目。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `showHostsContent()` |
+| 自动更新 | 4 | **开启 / 关闭自动更新**：根据当前状态动态切换。为当前用户注册后台定时任务（Windows 任务计划程序，Linux/macOS cron）。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `toggleAutoUpdate()` |
+| 自动更新 | 5 | **修改更新间隔**：在 30 / 60 / 120 分钟三档中选择。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `changeUpdateInterval()` |
+| 系统工具 | 6 | **测试网络连接**：并发测试 `github.com`、`hosts.earth-online.org` 等关键域名的 DNS 与 HTTPS 可达性。 | [network.go](file:///v:/git_data/github-hosts/scripts/network.go) `testConnection()` |
+| 系统工具 | 7 | **检查系统状态**：显示安装状态、当前版本号（来自可执行文件所在目录的 `.version`）、hosts 区块条目数量、配置目录路径与定时任务状态。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `checkStatus()` / [main.go](file:///v:/git_data/github-hosts/scripts/main.go) `displayInstallStatus()` |
+| 系统工具 | 8 | **查看更新日志**：读取本程序日志目录下的运行日志，供诊断问题。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `showUpdateLogs()` |
+| 系统工具 | 9 | **打开配置目录**：定位并打开本程序生成的配置文件目录。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `openConfigDir()` |
+| 系统工具 | 10 | **打开配置文件**：调用系统编辑器直接打开 `config.json`，方便手动调整。 | [menu.go](file:///v:/git_data/github-hosts/scripts/menu.go) `openConfigFile()` |
+| 系统工具 | 11 | **系统诊断**：汇总权限、网络、DNS、配置目录、hosts 文件内容等信息，输出一份可复制的诊断报告。 | [utils.go](file:///v:/git_data/github-hosts/scripts/utils.go) `runDiagnostics()` |
+| 备份管理 | 12 | **创建新备份**：将当前系统 hosts 文件复制为带时间戳（含毫秒）的备份文件。 | [backup.go](file:///v:/git_data/github-hosts/scripts/backup.go) `createNewBackup()` |
+| 备份管理 | 13 | **恢复备份**：列出所有备份并交互式选择其一，恢复后当前 hosts 会被覆盖（恢复前自动再做一次备份）。 | [backup.go](file:///v:/git_data/github-hosts/scripts/backup.go) `restoreBackupMenu()` / `restoreBackup()` |
+| 备份管理 | 14 | **删除备份**：列出所有备份并交互式删除指定备份。 | [backup.go](file:///v:/git_data/github-hosts/scripts/backup.go) `deleteBackupMenu()` |
+| 配置管理 | 15 | **导出配置**：将当前程序的配置（更新间隔、是否自动更新、时区等）导出为 JSON 文件。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `exportConfigToFile()` |
+| 配置管理 | 16 | **导入配置**：从 JSON 文件读取配置并覆盖当前设置。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `importConfigFromFile()` |
+| 配置管理 | 17 | **时区设置**：选择时区的时区信息。 | [config.go](file:///v:/git_data/github-hosts/scripts/config.go) `changeTimeZone()` |
+| 程序更新 | 18 | **检查程序更新**：访问 GitHub Releases 比对 tag 与本地 `.version` 文件，发现新版本后可下载替换。 | [update.go](file:///v:/git_data/github-hosts/scripts/update.go) `runUpdateCheck()` / `performUpdate()` |
+| 系统 | 19 | **打开 hosts 文件**：使用系统默认编辑器打开 `C:\Windows\System32\drivers\etc\hosts` 或 `/etc/hosts`。 | [main.go](file:///v:/git_data/github-hosts/scripts/main.go) `openHostsFile()` |
+| 关于 | 20 | **🐙 访问项目主页**：在浏览器中打开 `https://github.com/aspnmy/github-hosts`。 | [main.go](file:///v:/git_data/github-hosts/scripts/main.go) `openGitHubRepo()` |
+| — | 0 | **退出程序** | — |
 
 > 首次运行后，程序会在**可执行文件所在目录**写入 <code>.version</code> 文件，内容例如 <code>v0.0.0.1_nokv</code>。该文件用于「16 检查程序更新」时与 GitHub 最新 tag 对比版本。部署新版本时，请同时更新仓库根目录的 <code>.version</code> 文件。
 
@@ -267,24 +269,43 @@ https://raw.githubusercontent.com/aspnmy/github-hosts/nokv/domains.txt
 
 ```
 .
-├── src/                      # Cloudflare Worker 源码（TypeScript + Hono）
-│   ├── index.ts              # 入口，路由定义
-│   ├── services/hosts.ts     # DNS 查询与 hosts 格式化
-│   ├── domain-config.ts      # domains.txt 拉取与缓存
-│   ├── constants.ts          # 内置域名、DNS 提供商
+├── src/                         # Cloudflare Worker 源码（TypeScript + Hono）
+│   ├── index.ts                 # 入口，路由定义
+│   ├── services/hosts.ts        # DNS 查询与 hosts 格式化
+│   ├── domain-config.ts         # domains.txt 拉取与缓存
+│   ├── constants.ts             # 内置域名、DNS 提供商
 │   └── middleware/rate-limit.ts
-├── scripts/                  # Go 客户端程序
-│   ├── main.go               # 程序入口（18 项菜单）
-│   ├── backup.go             # 备份/恢复/删除
-│   ├── config.go             # 配置管理与自动更新
-│   ├── update.go             # GitHub Release 自更新
-│   └── github_hosts.sh       # 通用 Bash 脚本
-├── public/                   # Worker 静态资源（HTML 首页）
-├── .github/workflows/        # CI/CD：编译二进制 + 打 tag 发布
-├── domains.txt               # 支持的域名列表
-├── wrangler.toml             # Cloudflare Worker 配置
-└── .version                  # Go 客户端版本号
+├── scripts/                     # Go 客户端程序（14 个 .go 文件）
+│   ├── main.go                  # 入口 / 20 项菜单（dispatchChoice）
+│   ├── types.go                 # 全局常量、数据结构
+│   ├── banner.go                # 启动横幅与版本号读取
+│   ├── install.go               # 安装 / 更新 hosts 区块（原子写入）
+│   ├── uninstall.go             # 卸载 / 清理 hosts 区块（Start/End 标记）
+│   ├── config.go                # 配置管理 / 时区 / 自动更新
+│   ├── cron.go                  # Windows 任务计划 / Linux cron / macOS launchd
+│   ├── network.go               # 并发 DNS/HTTPS 网络连接测试
+│   ├── backup.go                # hosts 备份 / 恢复 / 删除
+│   ├── update.go                # GitHub Release 自更新
+│   ├── log.go                   # 统一日志系统（持久化句柄 + 日期切换）
+│   ├── utils.go                 # 目录权限 / 系统诊断工具
+│   ├── menu.go                  # 辅助功能（打开配置目录/文件 等）
+│   └── github_hosts.sh          # 通用 Bash 脚本（无需 Go 运行时）
+├── public/                      # Worker 静态资源（HTML 首页）
+├── .github/workflows/           # CI/CD：编译二进制 + 打 tag 发布
+├── domains.txt                  # 支持的域名列表
+├── wrangler.toml                # Cloudflare Worker 配置
+├── .version                     # Go 客户端版本号（编译时注入）
+└── README.md
 ```
+
+## 修订历史
+
+> 本节记录 Go 客户端的重要修订。每次代码修订在本 README 留下对应哈希，方便追溯。
+
+| 日期 (YYYY-MM-DD) | Commit 哈希 | 修订说明 |
+|------------------|-------------|---------|
+| 2026-06-12 | `8fe010c52a3b44b2b5eb19e84e2f468910a08a03` | **feat: 新增时区支持**。新增 `changeTimeZone()`、`detectSystemTimeZoneName()`、Windows `tzutil /g` 自动检测、TimeZone 字段写入配置；新增 `timeFormatStdTZ` 等时间格式常量。 |
+| 2026-06-12 | (work in progress — 本次尚未提交) | **Bug 修复与代码质量**：<br>• `install.go` 安装检测改为精确匹配 `hostsStartMarker`；<br>• `uninstall.go` `cleanHostsFile` 改为基于 Start/End 标记的精确区块删除；<br>• `main.go` `checkInstallStatus` 与 `countGitHubHosts` 合并，hosts 文件只读一次；<br>• `main.go` 菜单 switch 抽出独立 `dispatchChoice()` 函数，主循环简化；<br>• `install.go` `updateHosts` 改为**原子写入**（先写临时文件校验 → `os.Rename` 替换），避免中途失败损坏 hosts；<br>• `config.go` `loadConfig` 新增字段校验（UpdateInterval非法值回退为 60，TimeZone 空值自动补全）；<br>• `log.go` 采用持久化文件句柄 + 按日期切换，避免每次日志写入都 `Open/Close`；<br>• `backup.go` 备份文件名加毫秒后缀，防止同一秒内覆盖；<br>• `update.go` `matchReleaseAsset` 取循环变量地址改为显式 `matched := asset`；<br>• `types.go` 集中定义 `hostsStartMarker`、`hostsEndMarker`、时间格式等硬编码字符串；<br>• 全局 `fmt.Scanf` / `fmt.Scanln` 替换为 `readLine` / `promptString` / `promptInt` 统一输入；<br>• 移除 `App.logger` 无用字段（`log.go` 包级函数已承担日志输出）。 |
 
 ## 鸣谢
 

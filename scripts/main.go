@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,9 +9,60 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
+
+// ==================== 统一输入处理 ====================
+//
+// 使用 bufio.Reader 逐行读取，避免 fmt.Scanf 与 fmt.Scanln 混用导致的换行符残留问题。
+
+// stdinReader 全局标准输入读取器（跨调用保持状态）
+var stdinReader = bufio.NewReader(os.Stdin)
+
+// readLine 从标准输入读取一行（去掉末尾的换行符）
+//
+// 返回值：
+//   - string: 读取到的一行内容（去掉 \r\n 或 \n）
+//   - error:  读取失败时返回错误
+func readLine() (string, error) {
+	line, err := stdinReader.ReadString('\n')
+	if err != nil {
+		return strings.TrimSpace(line), err
+	}
+	return strings.TrimSpace(line), nil
+}
+
+// promptString 先打印提示再读取一行字符串（空输入不接受时会重复提示）
+//
+// 参数：
+//   - prompt: 提示文本（不含末尾换行，会原样输出）
+//
+// 返回值：
+//   - string: 用户输入的一行（已去空白）
+func promptString(prompt string) string {
+	fmt.Print(prompt)
+	line, _ := readLine()
+	return line
+}
+
+// promptInt 先打印提示，读取一行并解析为整数
+//
+// 参数：
+//   - prompt: 提示文本
+//
+// 返回值：
+//   - int: 解析成功的整数；失败时返回 -1
+//   - error: 解析失败时返回错误（无错误时也可能用户输入为空）
+func promptInt(prompt string) (int, error) {
+	fmt.Print(prompt)
+	line, err := readLine()
+	if err != nil || line == "" {
+		return -1, fmt.Errorf("未输入内容")
+	}
+	return strconv.Atoi(line)
+}
 
 // checkAndElevateSudo 检查权限并在需要时提权
 func checkAndElevateSudo() error {
@@ -197,9 +249,8 @@ func main() {
 		fmt.Println("\n0.  退出程序")
 		fmt.Printf("\n请输入选项 (0-20 或 q 退出): ")
 
-		// 读取用户输入
-		var input string
-		fmt.Scanln(&input)
+		// 读取用户输入（使用 readLine 统一处理换行符）
+		input, _ := readLine()
 
 		// 检查是否是退出命令
 		if input == "q" || input == "Q" {
@@ -208,8 +259,7 @@ func main() {
 		}
 
 		// 转换输入为数字
-		var choice int
-		_, err := fmt.Sscanf(input, "%d", &choice)
+		choice, err := strconv.Atoi(input)
 		if err != nil {
 			fmt.Println("无效的选项，请重试")
 			waitForEnter()
@@ -223,118 +273,134 @@ func main() {
 			continue
 		}
 
-		switch choice {
-		case 1: // 安装/更新
-			if err := app.installMenu(); err != nil {
-				log.Printf("安装失败: %v", err)
-			}
-			waitForEnter()
-		case 2: // 卸载
-			if !installed {
-				continue
-			}
-			if err := app.uninstall(); err != nil {
-				log.Printf("卸载失败: %v", err)
-			}
-			waitForEnter()
-		case 3: // 查看 hosts
-			if err := app.showHostsContent(); err != nil {
-				log.Printf("查看 hosts 内容失败: %v", err)
-			}
-			waitForEnter()
-		case 4: // 切换自动更新
-			if err := app.toggleAutoUpdate(); err != nil {
-				log.Printf("切换自动更新失败: %v", err)
-			}
-			waitForEnter()
-		case 5: // 修改更新间隔
-			if err := app.changeUpdateInterval(); err != nil {
-				log.Printf("修改更新间隔失败: %v", err)
-			}
-			waitForEnter()
-		case 6: // 测试网络连接
-			if err := app.testConnection(); err != nil {
-				log.Printf("网络测试失败: %v", err)
-			}
-			waitForEnter()
-		case 7: // 检查系统状态
-			if err := app.checkStatus(); err != nil {
-				log.Printf("状态检查失败: %v", err)
-			}
-			waitForEnter()
-		case 8: // 查看更新日志
-			if err := app.showUpdateLogs(); err != nil {
-				log.Printf("查看日志失败: %v", err)
-			}
-			waitForEnter()
-		case 9: // 打开配置目录
-			if err := app.openConfigDir(); err != nil {
-				log.Printf("打开配置目录失败: %v", err)
-			}
-			waitForEnter()
-		case 10: // 打开配置文件
-			if err := app.openConfigFile(); err != nil {
-				log.Printf("打开配置文件失败: %v", err)
-			}
-			waitForEnter()
-		case 11: // 系统诊断
-			if err := app.runDiagnostics(); err != nil {
-				log.Printf("系统诊断失败: %v", err)
-			}
-			waitForEnter()
-		case 12: // 创建新备份
-			if err := app.createNewBackup(); err != nil {
-				log.Printf("创建备份失败: %v", err)
-			}
-			waitForEnter()
-		case 13: // 恢复备份
-			if err := app.restoreBackupMenu(); err != nil {
-				log.Printf("恢复备份失败: %v", err)
-			}
-			waitForEnter()
-		case 14: // 删除备份
-			if err := app.deleteBackupMenu(); err != nil {
-				log.Printf("删除备份失败: %v", err)
-			}
-			waitForEnter()
-		case 15: // 导出配置
-			if err := app.exportConfigToFile(); err != nil {
-				log.Printf("导出配置失败: %v", err)
-			}
-			waitForEnter()
-		case 16: // 导入配置
-			if err := app.importConfigFromFile(); err != nil {
-				log.Printf("导入配置失败: %v", err)
-			}
-			waitForEnter()
-		case 17: // 时区设置
-			if err := app.changeTimeZone(); err != nil {
-				log.Printf("时区设置失败: %v", err)
-			}
-			waitForEnter()
-		case 18: // 检查程序更新
-			if err := runUpdateCheck(app); err != nil {
-				log.Printf("更新检查失败: %v", err)
-			}
-			waitForEnter()
-		case 19: // 打开 hosts 文件
-			if err := app.openHostsFile(); err != nil {
-				log.Printf("打开 hosts 文件失败: %v", err)
-			}
-			waitForEnter()
-		case 20: // 访问项目主页
-			if err := app.openGitHubRepo(); err != nil {
-				log.Printf("打开项目主页失败: %v", err)
-			}
-			waitForEnter()
-		case 0: // 退出
-			fmt.Println("感谢使用，再见！")
-			return
-		default:
-			fmt.Println("无效的选项，请重试")
-			waitForEnter()
+		// 调用统一的菜单分发函数
+		if app.dispatchChoice(choice, installed) {
+			return // 用户选择了退出
 		}
 	}
+}
+
+// dispatchChoice 统一分发用户的菜单选择，返回 true 表示应退出程序
+//
+// 参数：
+//   - choice: 用户选择的菜单项编号
+//   - installed: 程序是否已安装（用于跳过未安装状态下不可用的选项）
+//
+// 返回值：
+//   - bool: true 表示应退出程序，false 表示继续循环
+func (app *App) dispatchChoice(choice int, installed bool) bool {
+	switch choice {
+	case 1: // 安装/更新
+		if err := app.installMenu(); err != nil {
+			app.logWithLevel(ERROR, "安装失败: %v", err)
+		}
+		waitForEnter()
+	case 2: // 卸载
+		if !installed {
+			return false
+		}
+		if err := app.uninstall(); err != nil {
+			app.logWithLevel(ERROR, "卸载失败: %v", err)
+		}
+		waitForEnter()
+	case 3: // 查看 hosts
+		if err := app.showHostsContent(); err != nil {
+			app.logWithLevel(ERROR, "查看 hosts 内容失败: %v", err)
+		}
+		waitForEnter()
+	case 4: // 切换自动更新
+		if err := app.toggleAutoUpdate(); err != nil {
+			app.logWithLevel(ERROR, "切换自动更新失败: %v", err)
+		}
+		waitForEnter()
+	case 5: // 修改更新间隔
+		if err := app.changeUpdateInterval(); err != nil {
+			app.logWithLevel(ERROR, "修改更新间隔失败: %v", err)
+		}
+		waitForEnter()
+	case 6: // 测试网络连接
+		if err := app.testConnection(); err != nil {
+			app.logWithLevel(ERROR, "网络测试失败: %v", err)
+		}
+		waitForEnter()
+	case 7: // 检查系统状态
+		if err := app.checkStatus(); err != nil {
+			app.logWithLevel(ERROR, "状态检查失败: %v", err)
+		}
+		waitForEnter()
+	case 8: // 查看更新日志
+		if err := app.showUpdateLogs(); err != nil {
+			app.logWithLevel(ERROR, "查看日志失败: %v", err)
+		}
+		waitForEnter()
+	case 9: // 打开配置目录
+		if err := app.openConfigDir(); err != nil {
+			app.logWithLevel(ERROR, "打开配置目录失败: %v", err)
+		}
+		waitForEnter()
+	case 10: // 打开配置文件
+		if err := app.openConfigFile(); err != nil {
+			app.logWithLevel(ERROR, "打开配置文件失败: %v", err)
+		}
+		waitForEnter()
+	case 11: // 系统诊断
+		if err := app.runDiagnostics(); err != nil {
+			app.logWithLevel(ERROR, "系统诊断失败: %v", err)
+		}
+		waitForEnter()
+	case 12: // 创建新备份
+		if err := app.createNewBackup(); err != nil {
+			app.logWithLevel(ERROR, "创建备份失败: %v", err)
+		}
+		waitForEnter()
+	case 13: // 恢复备份
+		if err := app.restoreBackupMenu(); err != nil {
+			app.logWithLevel(ERROR, "恢复备份失败: %v", err)
+		}
+		waitForEnter()
+	case 14: // 删除备份
+		if err := app.deleteBackupMenu(); err != nil {
+			app.logWithLevel(ERROR, "删除备份失败: %v", err)
+		}
+		waitForEnter()
+	case 15: // 导出配置
+		if err := app.exportConfigToFile(); err != nil {
+			app.logWithLevel(ERROR, "导出配置失败: %v", err)
+		}
+		waitForEnter()
+	case 16: // 导入配置
+		if err := app.importConfigFromFile(); err != nil {
+			app.logWithLevel(ERROR, "导入配置失败: %v", err)
+		}
+		waitForEnter()
+	case 17: // 时区设置
+		if err := app.changeTimeZone(); err != nil {
+			app.logWithLevel(ERROR, "时区设置失败: %v", err)
+		}
+		waitForEnter()
+	case 18: // 检查程序更新
+		if err := runUpdateCheck(app); err != nil {
+			app.logWithLevel(ERROR, "更新检查失败: %v", err)
+		}
+		waitForEnter()
+	case 19: // 打开 hosts 文件
+		if err := app.openHostsFile(); err != nil {
+			app.logWithLevel(ERROR, "打开 hosts 文件失败: %v", err)
+		}
+		waitForEnter()
+	case 20: // 访问项目主页
+		if err := app.openGitHubRepo(); err != nil {
+			app.logWithLevel(ERROR, "打开项目主页失败: %v", err)
+		}
+		waitForEnter()
+	case 0: // 退出
+		fmt.Println("感谢使用，再见！")
+		return true
+	default:
+		fmt.Println("无效的选项，请重试")
+		waitForEnter()
+	}
+	return false
 }
 
 // NewApp 创建新的应用实例
@@ -350,7 +416,6 @@ func NewApp() (*App, error) {
 		configFile: filepath.Join(baseDir, "config.json"),
 		backupDir:  filepath.Join(baseDir, "backups"),
 		logDir:     filepath.Join(baseDir, "logs"),
-		logger:     log.New(os.Stdout, "", log.LstdFlags),
 	}
 
 	return app, nil
@@ -380,7 +445,14 @@ func (app *App) openGitHubRepo() error {
 	return nil
 }
 
-// loadConfig 加载配置文件
+// loadConfig 加载配置文件，并对关键字段做合法性校验
+//
+// 参数：
+//   - 无
+//
+// 返回值：
+//   - *Config: 合法的配置对象指针；任何错误发生时返回 nil
+//   - error: 读取/解析文件失败，或字段校验失败时返回错误
 func (app *App) loadConfig() (*Config, error) {
 	data, err := os.ReadFile(app.configFile)
 	if err != nil {
@@ -392,32 +464,47 @@ func (app *App) loadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	// 校验 UpdateInterval：允许的值为 30 / 60 / 120；0 视为未设置（自动更新未启用）
+	// 其他值则回退为 60，保证后续定时任务调度不崩溃
+	switch config.UpdateInterval {
+	case 0, 30, 60, 120:
+		// 合法值，通过
+	default:
+		config.UpdateInterval = 60
+	}
+
+	// 校验 TimeZone：空字符串时使用系统检测的时区
+	if config.TimeZone == "" {
+		config.TimeZone = detectSystemTimeZoneName()
+	}
+
 	return &config, nil
 }
 
 // waitForEnter 等待用户按回车并重新显示界面
 func waitForEnter() {
 	fmt.Print("\n按回车键继续...")
-	fmt.Scanln()           // 等待用户按下回车键
-	clearScreen()          // 清空控制台
-	fmt.Print(getBanner()) // 重新显示 banner
+	readLine() // 读取一行，等待用户按回车
+	clearScreen()
+	fmt.Print(getBanner())
 }
 
 // checkInstallStatus 检查程序安装状态
+// 只读一次 hosts 文件：同时判断是否已安装（含 Start 标记）和统计 GitHub 区块条目数
 func (app *App) checkInstallStatus() (bool, *InstallStatus) {
 	status := &InstallStatus{
 		IsInstalled:    false,
 		AutoUpdate:     false,
 		UpdateInterval: 0,
 		LastUpdate:     "",
-		Version:        "v1.0.0", // 当前程序版本
+		Version:        getAppVersion(),
 		TimeZone:       "",
+		HostsCount:     0,
 	}
 
-	// 检查配置文件是否存在
-	config, err := app.loadConfig()
-	if err == nil && config != nil {
-		status.IsInstalled = true
+	// 读取配置（用于显示偏好设置，不作为"已安装"的判断依据）
+	config, configErr := app.loadConfig()
+	if configErr == nil && config != nil {
 		status.AutoUpdate = config.AutoUpdate
 		status.UpdateInterval = config.UpdateInterval
 		status.TimeZone = config.TimeZone
@@ -428,14 +515,40 @@ func (app *App) checkInstallStatus() (bool, *InstallStatus) {
 			loc = time.Local
 		}
 		if !config.LastUpdate.IsZero() {
-			status.LastUpdate = config.LastUpdate.In(loc).Format("2006-01-02 15:04:05 MST")
+			status.LastUpdate = config.LastUpdate.In(loc).Format(timeFormatStdTZ)
+		}
+	}
+
+	// 一次读取 hosts 文件：同时判断是否已安装 + 统计 GitHub Hosts 区块条目数
+	content, err := os.ReadFile(hostsFile)
+	if err == nil {
+		contentStr := string(content)
+		// 判断是否已安装
+		if strings.Contains(contentStr, hostsStartMarker) {
+			status.IsInstalled = true
+		}
+		// 统计 GitHub Hosts 区块内的有效条目数
+		inBlock := false
+		for _, line := range strings.Split(contentStr, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.Contains(trimmed, hostsStartMarker) {
+				inBlock = true
+				continue
+			}
+			if strings.Contains(trimmed, hostsEndMarker) {
+				inBlock = false
+				continue
+			}
+			if inBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+				status.HostsCount++
+			}
 		}
 	}
 
 	return status.IsInstalled, status
 }
 
-// displayInstallStatus 显示安装状态
+// displayInstallStatus 显示安装状态（使用 checkInstallStatus 中已缓存的数据）
 func (app *App) displayInstallStatus() {
 	installed, status := app.checkInstallStatus()
 
@@ -449,10 +562,7 @@ func (app *App) displayInstallStatus() {
 		fmt.Printf("🕒 系统时区: %s\n", status.TimeZone)
 		fmt.Printf("🕒 上次更新: %s\n", status.LastUpdate)
 		fmt.Printf("📌 程序版本: %s\n", status.Version)
-
-		// 检查 hosts 文件中的 GitHub 记录数量
-		count, _ := app.countGitHubHosts()
-		fmt.Printf("📝 GitHub Hosts 记录数: %d\n", count)
+		fmt.Printf("📝 GitHub Hosts 记录数: %d\n", status.HostsCount)
 	} else {
 		fmt.Println("📦 安装状态: ❌ 未安装")
 		fmt.Println("💡 提示: 请选择选项 1 进行安装")
@@ -468,23 +578,6 @@ func formatBool(b bool) string {
 	return "❌ 已关闭"
 }
 
-// countGitHubHosts 统计 hosts 文件中的 GitHub 相关记录数量
-func (app *App) countGitHubHosts() (int, error) {
-	content, err := os.ReadFile(hostsFile)
-	if err != nil {
-		return 0, err
-	}
-
-	count := 0
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "github") || strings.Contains(line, "githubusercontent") {
-			count++
-		}
-	}
-	return count, nil
-}
-
 // InstallStatus 安装状态结构体
 type InstallStatus struct {
 	IsInstalled    bool
@@ -493,6 +586,7 @@ type InstallStatus struct {
 	LastUpdate     string
 	Version        string
 	TimeZone       string
+	HostsCount     int // GitHub Hosts 条目数（由 checkInstallStatus 一次读取获得）
 }
 
 // openHostsFile 打开 hosts 文件

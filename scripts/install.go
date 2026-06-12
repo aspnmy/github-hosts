@@ -14,13 +14,11 @@ import (
 func (app *App) installMenu() error {
 	app.logWithLevel(INFO, "检查系统状态...")
 
-	// 首先检查是否已存在 hosts 数据
+	// 首先检查 hosts 文件中是否已存在 GitHub Hosts 区块（基于 Start/End 标记）
 	content, err := os.ReadFile(hostsFile)
-	if err == nil && strings.Contains(string(content), "GitHub Hosts") {
+	if err == nil && strings.Contains(string(content), hostsStartMarker) {
 		// 已存在 GitHub Hosts 数据，询问是否更新
-		fmt.Print("\n检测到已存在 GitHub Hosts 数据，是否要更新？[Y/n]: ")
-		var updateResponse string
-		fmt.Scanf("%s", &updateResponse)
+		updateResponse := promptString("\n检测到已存在 GitHub Hosts 数据，是否要更新？[Y/n]: ")
 
 		if updateResponse == "n" || updateResponse == "N" {
 			app.logWithLevel(INFO, "已取消更新操作")
@@ -47,9 +45,7 @@ func (app *App) installMenu() error {
 
 	// 1. 选择是否开启自动更新
 	var autoUpdate bool = true // 默认开启
-	fmt.Print("\n是否开启自动更新？[Y/n]: ")
-	var response string
-	fmt.Scanf("%s", &response)
+	response := promptString("\n是否开启自动更新？[Y/n]: ")
 
 	var interval int = 60 // 默认 60 分钟
 	if response == "n" || response == "N" {
@@ -62,21 +58,22 @@ func (app *App) installMenu() error {
 		fmt.Println("1. 每 30 分钟")
 		fmt.Println("2. 每 60 分钟")
 		fmt.Println("3. 每 120 分钟")
-		fmt.Print("请输入选项 (1-3): ")
+		choice, err := promptInt("请输入选项 (1-3): ")
 
-		var choice int
-		fmt.Scanf("%d", &choice)
-
-		switch choice {
-		case 1:
-			interval = 30
-		case 2:
-			interval = 60
-		case 3:
-			interval = 120
-		default:
-			app.logWithLevel(ERROR, "无效的选项，将使用默认间隔（60分钟）")
-			interval = 60
+		if err == nil {
+			switch choice {
+			case 1:
+				interval = 30
+			case 2:
+				interval = 60
+			case 3:
+				interval = 120
+			default:
+				app.logWithLevel(ERROR, "无效的选项，将使用默认间隔（60分钟）")
+				interval = 60
+			}
+		} else {
+			app.logWithLevel(ERROR, "输入无效，将使用默认间隔（60分钟）")
 		}
 		app.logWithLevel(INFO, "选择的更新间隔: %d 分钟", interval)
 	}
@@ -117,12 +114,8 @@ func (app *App) installMenu() error {
 		fmt.Println("请选择时区设置方式:")
 		fmt.Println("1. 使用系统检测到的时区（推荐）")
 		fmt.Println("2. 手动选择常见时区")
-		fmt.Print("请输入选项 (1-2): ")
-
-		var tzChoice int
-		fmt.Scanf("%d", &tzChoice)
-
-		if tzChoice == 2 {
+		tzChoice, err := promptInt("请输入选项 (1-2): ")
+		if err == nil && tzChoice == 2 {
 			selectedTZ = promptTimeZoneSelection()
 		}
 		app.logWithLevel(INFO, "已选择时区: %s", selectedTZ)
@@ -200,15 +193,19 @@ func (app *App) setupDirectories() error {
 	return nil
 }
 
-// updateConfig 更新配置文件
+// updateConfig 更新配置文件（用于 hosts 更新完成时，会同时更新 LastUpdate 时间戳）
 //
 // 参数：
-//   - interval:   自动更新间隔，单位分钟
+//   - interval:   更新间隔（分钟）
 //   - autoUpdate: 是否开启自动更新
-//   - timeZone:   IANA 时区名称（如 Asia/Shanghai、America/New_York），为空则使用系统本地时区
+//   - timeZone:   IANA 时区名称；为空时使用系统本地时区
 //
 // 返回值：
 //   - error: 写入文件失败时返回错误
+//
+// 说明：
+//   会更新 LastUpdate 为当前时间。如果只是修改配置偏好（如时区/开关），
+//   请使用 updateConfigSettings 以保留真实的更新时间。
 func (app *App) updateConfig(interval int, autoUpdate bool, timeZone string) error {
 	// 若未提供时区，使用系统本地时区名称
 	if timeZone == "" {
@@ -223,11 +220,49 @@ func (app *App) updateConfig(interval int, autoUpdate bool, timeZone string) err
 
 	config := Config{
 		UpdateInterval: interval,
-		LastUpdate:     time.Now().In(loc),
-		Version:        "1.0.0",
+		LastUpdate:     time.Now().In(loc), // 仅在完整更新时刷新
+		Version:        getAppVersion(),
 		AutoUpdate:     autoUpdate,
 		TimeZone:       timeZone,
 	}
+
+	data, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(app.configFile, data, 0644)
+}
+
+// updateConfigSettings 仅更新配置偏好（时区/自动更新/间隔），保留上次更新时间
+//
+// 参数：
+//   - interval:   更新间隔（分钟）
+//   - autoUpdate: 是否开启自动更新
+//   - timeZone:   IANA 时区名称；为空时使用系统本地时区
+//
+// 返回值：
+//   - error: 读取或写入文件失败时返回错误
+//
+// 说明：
+//   用于「修改时区」、「切换自动更新」等仅修改配置偏好的场景，
+//   不会重置 LastUpdate 字段，保证更新时间显示准确。
+func (app *App) updateConfigSettings(interval int, autoUpdate bool, timeZone string) error {
+	// 读取现有配置，保留 LastUpdate
+	config, err := app.loadConfig()
+	if err != nil {
+		// 配置文件不存在，退化为完整更新（首次设置时）
+		return app.updateConfig(interval, autoUpdate, timeZone)
+	}
+
+	if timeZone == "" {
+		timeZone = detectSystemTimeZoneName()
+	}
+
+	// 保留 LastUpdate，仅覆盖其他字段
+	config.UpdateInterval = interval
+	config.AutoUpdate = autoUpdate
+	config.TimeZone = timeZone
 
 	data, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
@@ -245,19 +280,46 @@ func (app *App) updateConfig(interval int, autoUpdate bool, timeZone string) err
 // 返回值：
 //   - error: 更新失败时返回错误，包含具体阶段信息（备份/清理/下载/写入/刷新 DNS）
 func (app *App) updateHosts(timeZone string) error {
+	// 步骤 1：备份当前 hosts 文件（独立步骤，失败不影响后续）
 	app.logWithLevel(INFO, "开始备份当前 hosts 文件")
 	if err := app.backupHosts(); err != nil {
 		return fmt.Errorf("backup failed: %w", err)
 	}
 	app.logWithLevel(SUCCESS, "hosts 文件备份完成")
 
-	// 先清理已存在的 GitHub Hosts 内容
-	app.logWithLevel(INFO, "清理已存在的 GitHub Hosts 内容")
-	if err := app.cleanHostsFile(); err != nil {
-		return fmt.Errorf("清理已存在内容失败: %w", err)
+	// 步骤 2：读取当前 hosts 文件内容，清理已有的 GitHub Hosts 区块
+	content, err := os.ReadFile(hostsFile)
+	if err != nil {
+		return fmt.Errorf("读取 hosts 文件失败: %w", err)
 	}
-	app.logWithLevel(SUCCESS, "已清理旧的 hosts 内容")
+	lines := strings.Split(string(content), "\n")
+	var filteredLines []string
+	inBlock := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(trimmed, hostsStartMarker) {
+			inBlock = true
+			continue
+		}
+		if strings.Contains(trimmed, hostsEndMarker) {
+			inBlock = false
+			continue
+		}
+		if inBlock {
+			continue
+		}
+		filteredLines = append(filteredLines, line)
+	}
+	// 去除末尾空行
+	for len(filteredLines) > 0 && strings.TrimSpace(filteredLines[len(filteredLines)-1]) == "" {
+		filteredLines = filteredLines[:len(filteredLines)-1]
+	}
+	filteredContent := strings.Join(filteredLines, "\n")
+	if filteredContent != "" && !strings.HasSuffix(filteredContent, "\n") {
+		filteredContent += "\n"
+	}
 
+	// 步骤 3：从服务器下载最新 hosts 数据
 	app.logWithLevel(INFO, "正在从服务器获取最新 hosts 数据")
 	resp, err := http.Get(hostsAPI)
 	if err != nil {
@@ -269,45 +331,55 @@ func (app *App) updateHosts(timeZone string) error {
 		return fmt.Errorf("server returned status code: %d", resp.StatusCode)
 	}
 
-	content, err := io.ReadAll(resp.Body)
+	newData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response: %w", err)
 	}
 	app.logWithLevel(SUCCESS, "成功获取最新 hosts 数据")
 
-	app.logWithLevel(INFO, "正在更新本地 hosts 文件")
-	f, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open hosts file: %w", err)
-	}
-	defer f.Close()
-
-	// 根据配置时区显示更新时间
+	// 步骤 4：在内存中组装完整的新 hosts 文件内容
 	loc, err := time.LoadLocation(timeZone)
 	if err != nil {
 		loc = time.Local
 	}
-	updateTime := time.Now().In(loc).Format("2006-01-02 15:04:05 MST")
+	updateTime := time.Now().In(loc).Format(timeFormatStdTZ)
 
-	startMarker := fmt.Sprintf("\n# ===== GitHub Hosts Start ===== \n# (Updated: %s, Timezone: %s)\n",
-		updateTime, timeZone)
-	if _, err := f.WriteString(startMarker); err != nil {
-		return fmt.Errorf("failed to write start marker: %w", err)
+	var finalContent strings.Builder
+	finalContent.WriteString(filteredContent)
+	finalContent.WriteString("\n")
+	finalContent.WriteString(hostsStartMarker)
+	finalContent.WriteString(fmt.Sprintf(" \n# (Updated: %s, Timezone: %s)\n", updateTime, timeZone))
+	finalContent.Write(newData)
+	if !strings.HasSuffix(string(newData), "\n") {
+		finalContent.WriteString("\n")
+	}
+	finalContent.WriteString(hostsEndMarker)
+	finalContent.WriteString("\n")
+
+	// 步骤 5：写入临时文件 → 原子替换（避免写入中途失败导致 hosts 文件损坏）
+	tmpPath := hostsFile + ".tmp"
+	if err := os.WriteFile(tmpPath, []byte(finalContent.String()), 0644); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("写入临时 hosts 文件失败: %w", err)
 	}
 
-	// 写入 hosts 内容
-	if _, err := f.Write(content); err != nil {
-		return fmt.Errorf("failed to write hosts content: %w", err)
+	// 验证临时文件是否正确写入（至少应有 Start/End 标记）
+	verifyData, err := os.ReadFile(tmpPath)
+	if err != nil || !strings.Contains(string(verifyData), hostsStartMarker) ||
+		!strings.Contains(string(verifyData), hostsEndMarker) {
+		os.Remove(tmpPath)
+		return fmt.Errorf("临时 hosts 文件校验失败，已中止更新")
 	}
 
-	// 添加结束标记
-	endMarker := "# ===== GitHub Hosts End =====\n"
-	if _, err := f.WriteString(endMarker); err != nil {
-		return fmt.Errorf("failed to write end marker: %w", err)
+	// 原子替换：操作系统层面保证要么成功要么失败，不会出现部分写入
+	if err := os.Rename(tmpPath, hostsFile); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("原子替换 hosts 文件失败: %w", err)
 	}
 
 	app.logWithLevel(SUCCESS, "hosts 文件更新成功")
 
+	// 步骤 6：刷新 DNS 缓存（非致命错误）
 	app.logWithLevel(INFO, "正在刷新 DNS 缓存")
 	if err := app.flushDNSCache(); err != nil {
 		app.logWithLevel(WARNING, "DNS 缓存刷新失败: %v", err)

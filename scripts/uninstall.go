@@ -20,9 +20,7 @@ func (app *App) uninstall() error {
 	app.logWithLevelOpt(WARNING, false, "此操作将删除所有程序文件、配置和日志，且不可恢复")
 
 	// 询问用户确认
-	fmt.Print("确定要卸载吗？(y/N): ")
-	var response string
-	fmt.Scanln(&response)
+	response := promptString("确定要卸载吗？(y/N): ")
 
 	// 检查用户响应
 	if response != "y" && response != "Y" {
@@ -56,21 +54,10 @@ func (app *App) uninstall() error {
 	// 3. 删除程序文件和目录
 	app.logWithLevelOpt(INFO, false, "正在删除程序文件...")
 
-	// 获取用户主目录
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		app.logWithLevelOpt(ERROR, false, "获取用户主目录失败: %v", err)
-		return err
-	}
-
-	// 需要删除的目录列表
+	// 需要删除的目录列表（app.baseDir 即 homeDir/.github-hosts，
+	// RemoveAll 会递归删除子目录，因此不需要单独列出 backupDir/logDir）
 	dirsToRemove := []string{
-		app.baseDir,                        // 主程序目录
-		app.backupDir,                      // 备份目录
-		app.logDir,                         // 日志目录
-		homeDir + "/.github-hosts",         // 配置目录
-		homeDir + "/.github-hosts/backups", // 备份目录
-		homeDir + "/.github-hosts/logs",    // 日志目录
+		app.baseDir, // 主程序目录（含 backups/、logs/、config.json 等）
 	}
 
 	// 删除所有相关目录
@@ -92,6 +79,7 @@ func (app *App) uninstall() error {
 }
 
 // cleanHostsFile 清理 hosts 文件中的 GitHub 相关记录
+// 基于 Start/End 标记精确删除区块，不影响用户自己添加的其他 github 条目
 func (app *App) cleanHostsFile() error {
 	// 读取 hosts 文件内容
 	content, err := os.ReadFile(hostsFile)
@@ -102,13 +90,24 @@ func (app *App) cleanHostsFile() error {
 	lines := strings.Split(string(content), "\n")
 	var newLines []string
 	var lastLineEmpty bool = true // 用于跟踪上一行是否为空
+	inGithubBlock := false        // 当前是否在 GitHub Hosts 区块内部
 
-	// 逐行处理，移除 GitHub 相关记录和多余的空行
+	// 逐行处理：仅删除 Start/End 标记之间的内容
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
-		// 跳过 GitHub 相关记录
-		if strings.Contains(trimmedLine, "github") || strings.Contains(trimmedLine, "githubusercontent") {
+		// 遇到 Start 标记——从下一行开始丢弃
+		if strings.Contains(trimmedLine, hostsStartMarker) {
+			inGithubBlock = true
+			continue
+		}
+		// 遇到 End 标记——退出区块模式，End 行本身也丢弃
+		if strings.Contains(trimmedLine, hostsEndMarker) {
+			inGithubBlock = false
+			continue
+		}
+		// 在区块内部——整行丢弃
+		if inGithubBlock {
 			continue
 		}
 

@@ -70,8 +70,10 @@ func (app *App) createNewBackup() error {
 }
 
 // backupHosts 备份当前 hosts 文件
+// 文件名格式：hosts_YYYYMMDD_HHMMSS_SSS（末尾 3 位毫秒，防止同一秒内重复覆盖）
 func (app *App) backupHosts() error {
-	timestamp := time.Now().Format("20060102_150405")
+	now := time.Now()
+	timestamp := fmt.Sprintf("%s_%03d", now.Format("20060102_150405"), now.Nanosecond()/1000000)
 	backupPath := filepath.Join(app.backupDir, fmt.Sprintf("hosts_%s", timestamp))
 
 	input, err := os.ReadFile(hostsFile)
@@ -98,9 +100,7 @@ func (app *App) restoreBackupMenu() error {
 		return err
 	}
 
-	fmt.Print("\n请选择要恢复的备份序号（0 取消）: ")
-	var choice int
-	fmt.Scanf("%d", &choice)
+	choice, err := promptInt("\n请选择要恢复的备份序号（0 取消）: ")
 
 	if choice == 0 {
 		return nil
@@ -111,9 +111,7 @@ func (app *App) restoreBackupMenu() error {
 	}
 
 	// 确认恢复
-	fmt.Print("确定要恢复这个备份吗？这将覆盖当前的 hosts 文件 [y/N]: ")
-	var confirm string
-	fmt.Scanf("%s", &confirm)
+	confirm := promptString("确定要恢复这个备份吗？这将覆盖当前的 hosts 文件 [y/N]: ")
 
 	if strings.ToLower(confirm) != "y" {
 		app.logWithLevel(INFO, "已取消恢复操作")
@@ -140,9 +138,7 @@ func (app *App) deleteBackupMenu() error {
 		return err
 	}
 
-	fmt.Print("\n请选择要删除的备份序号（0 取消）: ")
-	var choice int
-	fmt.Scanf("%d", &choice)
+	choice, err := promptInt("\n请选择要删除的备份序号（0 取消）: ")
 
 	if choice == 0 {
 		return nil
@@ -153,9 +149,7 @@ func (app *App) deleteBackupMenu() error {
 	}
 
 	// 确认删除
-	fmt.Print("确定要删除这个备份吗？此操作不可恢复 [y/N]: ")
-	var confirm string
-	fmt.Scanf("%s", &confirm)
+	confirm := promptString("确定要删除这个备份吗？此操作不可恢复 [y/N]: ")
 
 	if strings.ToLower(confirm) != "y" {
 		app.logWithLevel(INFO, "已取消删除操作")

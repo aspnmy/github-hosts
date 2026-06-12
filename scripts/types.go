@@ -1,10 +1,27 @@
 package main
 
 import (
-	"log"
 	"runtime"
 	"time"
 )
+
+// ==================== 全局常量 ====================
+// hosts 文件区块标记——用于识别 GitHub Hosts 相关条目
+// 所有读写 hosts 文件的代码统一使用这些常量，避免硬编码字符串不一致
+const (
+	hostsStartMarker = "# ===== GitHub Hosts Start ====="
+	hostsEndMarker   = "# ===== GitHub Hosts End ====="
+)
+
+// 通用时间格式常量——统一程序中所有时间显示
+const (
+	timeFormatStd    = "2006-01-02 15:04:05"         // 标准日期时间
+	timeFormatStdTZ  = "2006-01-02 15:04:05 MST"     // 带时区的日期时间
+	timeFormatFile   = "20060102"                    // 文件名用日期
+	timeFormatFileTm = "20060102_150405"             // 文件名用日期+时间
+)
+
+// ==================== 数据结构 ====================
 
 // App 应用程序结构体
 type App struct {
@@ -12,7 +29,6 @@ type App struct {
 	configFile string
 	backupDir  string
 	logDir     string
-	logger     *log.Logger
 }
 
 // Config 配置文件结构体

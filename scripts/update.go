@@ -25,10 +25,10 @@ const (
 
 // GitHubRelease GitHub Release API 返回结构（仅保留所需字段）
 type GitHubRelease struct {
-	TagName string `json:"tag_name"`
-	Name    string `json:"name"`
+	TagName string         `json:"tag_name"`
+	Name    string         `json:"name"`
 	Assets  []ReleaseAsset `json:"assets"`
-	HtmlURL string `json:"html_url"`
+	HtmlURL string         `json:"html_url"`
 }
 
 // ReleaseAsset Release 资产（可下载文件）信息
@@ -40,10 +40,10 @@ type ReleaseAsset struct {
 
 // UpdateInfo 版本更新信息
 type UpdateInfo struct {
-	NewVersion  string        // 新版本号
-	DownloadURL string        // 新程序下载地址
-	ReleaseURL  string        // Release 页面 URL
-	AssetSize   int64         // 文件大小（字节）
+	NewVersion  string // 新版本号
+	DownloadURL string // 新程序下载地址
+	ReleaseURL  string // Release 页面 URL
+	AssetSize   int64  // 文件大小（字节）
 }
 
 // checkForUpdates 查询 GitHub 最新 Release，若存在更新则返回更新信息，否则返回 nil
@@ -126,14 +126,14 @@ func matchReleaseAsset(assets []ReleaseAsset) *ReleaseAsset {
 		osExt = ".exe"
 	}
 
+	// 优先匹配：名称中同时包含 OS 和 arch
 	for _, asset := range assets {
 		name := strings.ToLower(asset.Name)
-
-		// 优先匹配：名称中同时包含当前 OS 和当前架构
 		if strings.Contains(name, runtime.GOOS) &&
-		   strings.Contains(name, runtime.GOARCH) &&
-		   (osExt == "" || strings.HasSuffix(name, osExt)) {
-			return &asset
+			strings.Contains(name, runtime.GOARCH) &&
+			(osExt == "" || strings.HasSuffix(name, osExt)) {
+			matched := asset // 显式拷贝，避免使用 range 循环变量地址
+			return &matched
 		}
 	}
 
@@ -141,16 +141,18 @@ func matchReleaseAsset(assets []ReleaseAsset) *ReleaseAsset {
 	for _, asset := range assets {
 		name := strings.ToLower(asset.Name)
 		if strings.Contains(name, runtime.GOOS) &&
-		   (osExt == "" || strings.HasSuffix(name, osExt)) {
-			return &asset
+			(osExt == "" || strings.HasSuffix(name, osExt)) {
+			matched := asset
+			return &matched
 		}
 	}
 
-	// 再回退：仅匹配可执行后缀（适用于只打了一个平台的 Release）
+	// 再回退：仅匹配可执行后缀
 	for _, asset := range assets {
 		name := strings.ToLower(asset.Name)
 		if osExt == "" || strings.HasSuffix(name, osExt) {
-			return &asset
+			matched := asset
+			return &matched
 		}
 	}
 
@@ -164,8 +166,8 @@ func matchReleaseAsset(assets []ReleaseAsset) *ReleaseAsset {
 //   - v2: 版本号 2
 //
 // 返回值：
-//   -  1: v1 > v2
-//   -  0: v1 == v2
+//   - 1: v1 > v2
+//   - 0: v1 == v2
 //   - -1: v1 < v2
 func compareVersions(v1, v2 string) int {
 	// 去掉 v/V 前缀
@@ -208,9 +210,10 @@ func compareVersions(v1, v2 string) int {
 //   - int: 提取出的数字；无法解析时返回 0
 //
 // 示例：
-//   parseNumericSegment("10")     → 10
-//   parseNumericSegment("1_nokv") → 1
-//   parseNumericSegment("")       → 0
+//
+//	parseNumericSegment("10")     → 10
+//	parseNumericSegment("1_nokv") → 1
+//	parseNumericSegment("")       → 0
 func parseNumericSegment(s string) int {
 	// 先尝试直接整段转换
 	if n, err := strconv.Atoi(s); err == nil {
@@ -332,9 +335,9 @@ func getCurrentExecutablePath() (string, error) {
 //   - error: 更新失败时返回错误；成功时不会返回（程序将退出）
 //
 // 工作流程：
-//   1. 在当前程序目录生成平台相关的更新脚本（Windows .bat，Unix .sh）
-//   2. 脚本内容：等待当前进程退出 -> 备份旧程序 -> 将新版本移动到原位置 -> 可选重启
-//   3. 启动脚本并立即退出当前程序
+//  1. 在当前程序目录生成平台相关的更新脚本（Windows .bat，Unix .sh）
+//  2. 脚本内容：等待当前进程退出 -> 备份旧程序 -> 将新版本移动到原位置 -> 可选重启
+//  3. 启动脚本并立即退出当前程序
 func performUpdate(newExePath, newVersion string) error {
 	currentExe, err := getCurrentExecutablePath()
 	if err != nil {
@@ -463,9 +466,7 @@ func runUpdateCheck(app *App) error {
 	fmt.Printf("  下载地址: %s\n", info.DownloadURL)
 
 	// 询问用户是否更新
-	fmt.Print("\n是否下载并更新到新版本？[Y/n]: ")
-	var choice string
-	fmt.Scanf("%s", &choice)
+	choice := promptString("\n是否下载并更新到新版本？[Y/n]: ")
 
 	if choice == "n" || choice == "N" {
 		fmt.Println("  已取消更新")
