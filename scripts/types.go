@@ -81,3 +81,10 @@ func loadHostSource() string {
 	fmt.Printf("  URL: %s\n", src.HostsURL)
 	return src.HostsURL
 }
+
+// 定时任务相关路径（从原始main.go移过来）
+var (
+	windowsTaskName = "GitHubHostsUpdate"
+	darwinPlistPath = "/Library/LaunchDaemons/com.github.hosts.plist"
+	linuxCronPath   = "/etc/cron.d/github-hosts"
+)
