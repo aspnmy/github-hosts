@@ -14,6 +14,19 @@
 >
 > 原作者仓库(有KV依赖)：[https://github.com/TinsFox/github-hosts](https://github.com/TinsFox/github-hosts)
 
+## 客户端工具
+
+`scripts/` 目录下包含 Go 编写的客户端工具，支持从配置文件 `~/.aspnmy/hostsource.json` 读取数据源地址，拉取域名 IP 映射并更新本地 `/etc/hosts`。
+
+支持数据源：
+- 🌐 **CF Worker** — `hosts.earth-online.org`（实时 DNS 查询）
+- 📄 **GitHub Pages** — `myhosts.earth-online.org`（定时解析）
+- 🐳 **跳板机容器** — `127.0.0.1:18763`（批量解析）
+
+```bash
+cd scripts && go build -o github-hosts . && sudo ./github-hosts
+```
+
 ## 特性
 
 - 🚀 使用 [Hono](https://hono.dev/) + Cloudflare Workers 部署，无需自有服务器
