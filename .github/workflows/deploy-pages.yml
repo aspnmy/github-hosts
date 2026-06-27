@@ -2,10 +2,10 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [nokv]
-    paths: ['domains.txt']
+    branches: [actions-deploy]
+    paths: ['domains.txt', 'CNAME']
   schedule:
-    - cron: '0 */8 * * *'   # 每8小时刷新IP
+    - cron: '0 */8 * * *'
   workflow_dispatch:
 
 permissions:
@@ -19,53 +19,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: nokv
+          ref: actions-deploy
 
-      - name: DNS批量解析
+      - name: DNS Resolve
         run: |
           mkdir -p dist
-          echo "# GitHub Hosts - 自动更新" > dist/hosts.txt
-          echo "# 更新: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')" >> dist/hosts.txt
-          echo "# 域名总数: $(wc -l < domains.txt)" >> dist/hosts.txt
-          echo "# 来源: https://github.com/aspnmy/github-hosts" >> dist/hosts.txt
+          echo "# GitHub Hosts - Auto Generated" > dist/hosts.txt
+          echo "# Updated: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')" >> dist/hosts.txt
+          echo "# Total domains: $(wc -l < domains.txt)" >> dist/hosts.txt
           echo "" >> dist/hosts.txt
-
-          total=$(wc -l < domains.txt)
-          count=0
-          success=0
-          failed=0
           while IFS= read -r domain; do
             [ -z "$domain" ] && continue
-            ip=$(dig +short @1.1.1.1 "$domain" 2>/dev/null | \
-                 grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | \
-                 grep -v '^127\.' | head -1)
-            if [ -n "$ip" ]; then
-              printf "%-25s %s\n" "$ip" "$domain" >> dist/hosts.txt
-              success=$((success + 1))
-            else
-              echo "# FAILED: $domain" >> dist/hosts.txt
-              failed=$((failed + 1))
-            fi
-            count=$((count + 1))
+            ip=$(dig +short @1.1.1.1 "$domain" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v '^127\.' | head -1)
+            [ -n "$ip" ] && printf "%-25s %s\n" "$ip" "$domain" >> dist/hosts.txt
           done < domains.txt
+          cp CNAME dist/
 
-          echo "" >> dist/hosts.txt
-          echo "# 成功: $success | 失败: $failed | 总计: $total" >> dist/hosts.txt
-
-          # 复制首页
-          cp public/index.html dist/
-          echo "$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')" > dist/VERSION
-          echo "$success" > dist/SUCCESS
-          echo "$failed" > dist/FAILED
-
-          echo "--- 解析统计 ---"
-          echo "成功: $success | 失败: $failed | 总计: $total"
-
-      - name: 部署到 gh-pages
+      - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           publish_branch: gh-pages
           keep_files: false
-          full_commit_message: "auto: update hosts [$success ok / $failed fail]"
+          cname: myhosts.earth-online.org
