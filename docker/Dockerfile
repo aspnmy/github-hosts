@@ -1,9 +1,6 @@
-# GitHub Hosts Resolver - Docker
-# 自动解析域名DNS并生成hosts文件，通过HTTP服务暴露
-
 FROM alpine:3.19
 
-RUN apk add --no-cache bind-tools curl netcat-openbsd
+RUN apk add --no-cache bind-tools curl python3
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
