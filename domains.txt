@@ -1,3 +1,4 @@
+0.downloader.disk.yandex.com
 0.downloader.disk.yandex.net
 0.downloader.disk.yandex.ru
 0.gravatar.com
@@ -263,7 +264,6 @@ developers.pinterest.com
 developers.spotify.com
 devnews.spotify.com
 devrom.org
-devrom.org0.downloader.disk.yandex.com
 dictionaryextension-pa.googleapis.com
 discord-attachments-uploads-prd.storage.googleapis.com
 discord.com
